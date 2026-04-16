@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     password VARCHAR(255) NOT NULL,
     bio TEXT,
     avatar VARCHAR(255) DEFAULT 'default_avatar.png',
+    rol ENUM('estudiante', 'docente', 'admin') DEFAULT 'estudiante',
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -96,3 +97,57 @@ CREATE TABLE IF NOT EXISTS chat_mensajes (
     FOREIGN KEY (destinatario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Tabla de Grupos (Creados por docentes)
+CREATE TABLE IF NOT EXISTS grupos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    codigo_invitacion VARCHAR(10) UNIQUE NOT NULL,
+    docente_id INT NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (docente_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabla de Estudiantes por Grupo
+CREATE TABLE IF NOT EXISTS grupo_estudiantes (
+    grupo_id INT NOT NULL,
+    estudiante_id INT NOT NULL,
+    fecha_union TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (grupo_id, estudiante_id),
+    FOREIGN KEY (grupo_id) REFERENCES grupos(id) ON DELETE CASCADE,
+    FOREIGN KEY (estudiante_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Historial de Uso de IA (Métricas para el docente)
+CREATE TABLE IF NOT EXISTS uso_ia_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    accion VARCHAR(50) NOT NULL,
+    titulo_conctexto VARCHAR(255),
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabla de Votos (Likes) para foro
+CREATE TABLE IF NOT EXISTS foro_votos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    pregunta_id INT DEFAULT NULL,
+    respuesta_id INT DEFAULT NULL,
+    fecha_voto TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (pregunta_id) REFERENCES foro_preguntas(id) ON DELETE CASCADE,
+    FOREIGN KEY (respuesta_id) REFERENCES foro_respuestas(id) ON DELETE CASCADE,
+    UNIQUE KEY (usuario_id, pregunta_id),
+    UNIQUE KEY (usuario_id, respuesta_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabla de Comentarios en Snippets (Feedback)
+CREATE TABLE IF NOT EXISTS snippet_comentarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    snippet_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    contenido TEXT NOT NULL,
+    fecha_comentario TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (snippet_id) REFERENCES snippets(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -65,11 +65,21 @@ $users = $stmt->fetchAll();
         font-size: 1.05rem;
         margin-bottom: 2px;
         color: var(--text-primary);
+        width: 100%;
+        word-break: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
     .user-handle {
         color: var(--text-secondary);
         font-size: 0.85rem;
         margin-bottom: 12px;
+        width: 100%;
+        word-break: break-all;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .user-bio {
         color: var(--text-secondary);

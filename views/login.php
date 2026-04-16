@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
             $_SESSION['user_id'] = $user->id;
             $_SESSION['nombre'] = $user->nombre_completo;
             $_SESSION['usuario'] = $user->usuario;
+            $_SESSION['rol'] = $user->rol; // Guardamos el rol
             redirect('index.php');
         } else {
             $error = 'Usuario o contraseña incorrectos.';

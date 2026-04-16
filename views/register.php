@@ -13,12 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
     if (empty($nombre) || empty($usuario) || empty($email) || empty($password)) {
         $error = 'Todos los campos son obligatorios.';
     } else {
+        $rol = $_POST['rol'] ?? 'estudiante';
         // Encriptar contraseña
         $password_hash = password_hash($password, PASSWORD_BCRYPT);
 
         try {
-            $stmt = $pdo->prepare("INSERT INTO usuarios (nombre_completo, usuario, email, password) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$nombre, $usuario, $email, $password_hash]);
+            $stmt = $pdo->prepare("INSERT INTO usuarios (nombre_completo, usuario, email, password, rol) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$nombre, $usuario, $email, $password_hash, $rol]);
             $success = '¡Cuenta creada con éxito! Ya puedes iniciar sesión.';
         } catch (PDOException $e) {
             if ($e->getCode() == 23000) {
@@ -63,6 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
             <div class="form-group">
                 <label>Contraseña</label>
                 <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+            </div>
+            <div class="form-group">
+                <label>¿Quién eres?</label>
+                <select name="rol" class="form-control" required style="cursor: pointer;">
+                    <option value="estudiante">Soy Estudiante</option>
+                    <option value="docente">Soy Docente / Investigador</option>
+                </select>
             </div>
             <button type="submit" name="register" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Crear Cuenta</button>
         </form>

@@ -40,7 +40,7 @@ $preguntas = $stmt->fetchAll();
                         <p style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Respuestas</p>
                     </div>
                     <div style="flex: 1;">
-                        <h3 style="margin-bottom: 8px;"><a href="<?= BASE_URL ?>views/forum_detail.php?id=<?= $p->id ?>" style="color: #fff; text-decoration: none;"><?= $p->titulo ?></a></h3>
+                        <h3 style="margin-bottom: 8px;"><a href="<?= BASE_URL ?>views/forum_detail.php?id=<?= $p->id ?>" style="color: var(--text-primary); text-decoration: none;"><?= $p->titulo ?></a></h3>
                         <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">
                             <?= substr(strip_tags($p->contenido), 0, 150) ?>...
                         </p>
@@ -48,9 +48,14 @@ $preguntas = $stmt->fetchAll();
                             <span><i class="far fa-user"></i> <?= $p->usuario ?></span>
                             <span><i class="far fa-clock"></i> <?= date('d M, Y', strtotime($p->fecha_creacion)) ?></span>
                             <?php if ($p->tags): ?>
-                                <span><i class="fas fa-tag"></i> <?= $p->tags ?></span>
+                                <span><i class="fas fa-tag"></i> <?= htmlspecialchars($p->tags) ?></span>
                             <?php endif; ?>
                         </div>
+                    </div>
+                    <div>
+                        <a href="<?= BASE_URL ?>views/forum_detail.php?id=<?= $p->id ?>" class="btn btn-primary" style="white-space: nowrap;">
+                            <i class="fas fa-reply"></i> Ver y Responder
+                        </a>
                     </div>
                 </div>
             <?php endforeach; ?>

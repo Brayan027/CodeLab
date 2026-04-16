@@ -22,6 +22,9 @@
                     <li><a href="<?= BASE_URL ?>views/snippets.php">Repositorio</a></li>
                     <li><a href="<?= BASE_URL ?>views/users.php">Comunidad</a></li>
                     <?php if (is_logged_in()): ?>
+                        <?php if ($_SESSION['rol'] == 'docente'): ?>
+                            <li><a href="<?= BASE_URL ?>views/teacher_dashboard.php" style="color: var(--secondary-color); font-weight: 700;">Panel Docente</a></li>
+                        <?php endif; ?>
                         <li><a href="<?= BASE_URL ?>views/chat.php">Chat</a></li>
                         <li><a href="<?= BASE_URL ?>views/profile.php">Mi Perfil</a></li>
                         <li><a href="<?= BASE_URL ?>api/logout.php" class="btn btn-outline">Salir</a></li>

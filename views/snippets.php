@@ -2,18 +2,28 @@
 require_once __DIR__ . '/../includes/header.php';
 
 $lenguaje_filter = $_GET['lang'] ?? '';
-$query = "SELECT s.*, u.usuario FROM snippets s JOIN usuarios u ON s.usuario_id = u.id WHERE s.privacidad = 'publico'";
-$params = [];
+$user_id = $_SESSION['user_id'] ?? 0;
+
+// Consulta que muestra públicos y los privados del usuario actual
+$query = "SELECT s.*, u.usuario FROM snippets s 
+          JOIN usuarios u ON s.usuario_id = u.id 
+          WHERE (s.privacidad = 'publico' OR s.usuario_id = ?)";
+
+$params = [$user_id];
 if ($lenguaje_filter) {
     $query .= " AND s.lenguaje = ?";
     $params[] = $lenguaje_filter;
 }
+
 $query .= " ORDER BY s.fecha_creacion DESC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $snippets = $stmt->fetchAll();
 
-$langs = $pdo->query("SELECT DISTINCT lenguaje FROM snippets WHERE privacidad='publico'")->fetchAll();
+// Filtro de lenguajes dinámico basado en visibilidad
+$langs_stmt = $pdo->prepare("SELECT DISTINCT lenguaje FROM snippets WHERE privacidad='publico' OR usuario_id = ?");
+$langs_stmt->execute([$user_id]);
+$langs = $langs_stmt->fetchAll();
 ?>
 
 <div class="animate-in" style="margin-top: 40px;">
@@ -44,7 +54,14 @@ $langs = $pdo->query("SELECT DISTINCT lenguaje FROM snippets WHERE privacidad='p
             <?php foreach ($snippets as $s): ?>
                 <div class="glass-card" style="display: flex; flex-direction: column;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span style="background: rgba(59,130,246,0.1); color: var(--primary-color); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;"><?= $s->lenguaje ?></span>
+                        <div>
+                            <span style="background: rgba(59,130,246,0.1); color: var(--primary-color); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;"><?= $s->lenguaje ?></span>
+                            <?php if ($s->privacidad == 'privado'): ?>
+                                <span style="background: rgba(15, 23, 42, 0.1); color: var(--text-primary); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-left: 5px;">
+                                    <i class="fas fa-lock" style="font-size: 0.7rem;"></i> Privado
+                                </span>
+                            <?php endif; ?>
+                        </div>
                         <span style="font-size: 0.75rem; color: var(--text-secondary);"><?= date('d M Y', strtotime($s->fecha_creacion)) ?></span>
                     </div>
                     <h3 style="margin-bottom: 8px;"><?= $s->titulo ?></h3>
