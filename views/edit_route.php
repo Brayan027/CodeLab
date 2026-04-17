@@ -38,8 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_route'])) {
 // ─── ACCIÓN: Añadir nuevo paso ───
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_step'])) {
     $titulo_paso = sanitize($_POST['step_titulo']);
-    $contenido = sanitize($_POST['step_contenido']);
-    $codigo = $_POST['step_codigo'];
+    $contenido_json = $_POST['step_contenido_json']; // Recibimos el JSON de los bloques
 
     if (empty($titulo_paso)) {
         $error = 'El título del paso es obligatorio.';
@@ -49,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_step'])) {
         $res = $stmt->fetch();
         $orden = ($res->max_o ?? 0) + 1;
 
-        $stmt = $pdo->prepare("INSERT INTO pasos_ruta (ruta_id, titulo, contenido, codigo_snippet, orden) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$ruta_id, $titulo_paso, $contenido, $codigo, $orden]);
+        $stmt = $pdo->prepare("INSERT INTO pasos_ruta (ruta_id, titulo, contenido, orden) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$ruta_id, $titulo_paso, $contenido_json, $orden]);
         $success = 'Paso añadido correctamente.';
     }
 }
@@ -59,15 +58,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_step'])) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_step'])) {
     $step_id = $_POST['step_id'];
     $titulo_paso = sanitize($_POST['step_titulo']);
-    $contenido = sanitize($_POST['step_contenido']);
-    $codigo = $_POST['step_codigo'];
+    $contenido_json = $_POST['step_contenido_json'];
 
     // Verificar que el paso pertenece a esta ruta
     $stmt = $pdo->prepare("SELECT id FROM pasos_ruta WHERE id = ? AND ruta_id = ?");
     $stmt->execute([$step_id, $ruta_id]);
     if ($stmt->fetch()) {
-        $stmt = $pdo->prepare("UPDATE pasos_ruta SET titulo = ?, contenido = ?, codigo_snippet = ? WHERE id = ?");
-        $stmt->execute([$titulo_paso, $contenido, $codigo, $step_id]);
+        $stmt = $pdo->prepare("UPDATE pasos_ruta SET titulo = ?, contenido = ? WHERE id = ?");
+        $stmt->execute([$titulo_paso, $contenido_json, $step_id]);
         $success = 'Paso actualizado correctamente.';
     } else {
         $error = 'No se pudo actualizar el paso.';
@@ -367,6 +365,61 @@ $pasos = $stmt->fetchAll();
     .confirm-delete:hover {
         background: #dc2626;
     }
+    /* Estilos para Bloques Dinámicos */
+    .block-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 12px;
+        position: relative;
+    }
+    .block-item .remove-block {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: #ef4444;
+        cursor: pointer;
+        font-size: 0.9rem;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    .block-item .remove-block:hover {
+        opacity: 1;
+    }
+    .block-label {
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .add-block-btns {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+    }
+    .btn-add-block {
+        flex: 1;
+        padding: 10px;
+        border: 2px dashed var(--glass-border);
+        background: #fff;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+    }
+    .btn-add-block:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        background: rgba(59, 130, 246, 0.02);
+    }
 </style>
 
 <div class="animate-in" style="margin-top: 40px; max-width: 900px; margin-left: auto; margin-right: auto;">
@@ -505,12 +558,19 @@ $pasos = $stmt->fetchAll();
                     <input type="text" name="step_titulo" class="form-control" placeholder="Ej. El Ciclo For" required>
                 </div>
                 <div class="form-group">
-                    <label>Explicación / Contenido</label>
-                    <textarea name="step_contenido" class="form-control" rows="6" placeholder="Explica cómo funciona..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Snippet de Código (Java / Otros)</label>
-                    <textarea name="step_codigo" class="form-control" rows="8" style="font-family: 'Fira Code', monospace; background: #0f172a; color: #e2e8f0;" placeholder="for(int i=0; i<10; i++) { ... }"></textarea>
+                    <label>Estructura del Paso (Añade bloques de texto y código)</label>
+                    <div id="add-blocks-container">
+                        <!-- Los bloques se añadirán aquí dinámicamente -->
+                    </div>
+                    <div class="add-block-btns">
+                        <button type="button" class="btn-add-block" onclick="addBlock('add', 'text')">
+                            <i class="fas fa-align-left"></i> + Texto
+                        </button>
+                        <button type="button" class="btn-add-block" onclick="addBlock('add', 'code')">
+                            <i class="fas fa-code"></i> + Código
+                        </button>
+                    </div>
+                    <input type="hidden" name="step_contenido_json" id="add_step_json">
                 </div>
                 <button type="submit" name="add_step" class="btn btn-primary" style="width: 100%; padding: 14px;">
                     <i class="fas fa-plus-circle"></i> Guardar Paso
@@ -535,12 +595,19 @@ $pasos = $stmt->fetchAll();
                 <input type="text" name="step_titulo" id="edit_step_titulo" class="form-control" required>
             </div>
             <div class="form-group">
-                <label>Explicación / Contenido</label>
-                <textarea name="step_contenido" id="edit_step_contenido" class="form-control" rows="6"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Snippet de Código</label>
-                <textarea name="step_codigo" id="edit_step_codigo" class="form-control" rows="8" style="font-family: 'Fira Code', monospace; background: #0f172a; color: #e2e8f0;"></textarea>
+                <label>Estructura del Paso</label>
+                <div id="edit-blocks-container">
+                    <!-- Los bloques se añadirán aquí dinámicamente -->
+                </div>
+                <div class="add-block-btns">
+                    <button type="button" class="btn-add-block" onclick="addBlock('edit', 'text')">
+                        <i class="fas fa-align-left"></i> + Texto
+                    </button>
+                    <button type="button" class="btn-add-block" onclick="addBlock('edit', 'code')">
+                        <i class="fas fa-code"></i> + Código
+                    </button>
+                </div>
+                <input type="hidden" name="step_contenido_json" id="edit_step_json">
             </div>
             <div style="display: flex; gap: 12px;">
                 <button type="button" onclick="closeEditModal()" class="btn btn-outline" style="flex: 1; padding: 14px;">Cancelar</button>
@@ -584,14 +651,70 @@ function switchTab(tab) {
     if (tabs[map[tab]]) tabs[map[tab]].classList.add('active');
 }
 
+// ─── Lógica de Bloques Dinámicos ───
+let blockCounts = { add: 0, edit: 0 };
+
+function addBlock(formType, blockType, value = '') {
+    const container = document.getElementById(formType + '-blocks-container');
+    const id = Date.now() + Math.random();
+    
+    const block = document.createElement('div');
+    block.className = 'block-item';
+    block.dataset.type = blockType;
+    
+    const icon = blockType === 'text' ? 'fa-align-left' : 'fa-code';
+    const label = blockType === 'text' ? 'Texto Explicativo' : 'Bloque de Código';
+    
+    block.innerHTML = `
+        <div class="block-label"><i class="fas ${icon}"></i> ${label}</div>
+        <span class="remove-block" onclick="this.parentElement.remove(); updateJSON('${formType}')"><i class="fas fa-trash"></i></span>
+        <textarea class="form-control" rows="${blockType === 'text' ? 4 : 8}" 
+            style="${blockType === 'code' ? 'font-family: monospace; background: #0f172a; color: #e2e8f0;' : ''}"
+            placeholder="${blockType === 'text' ? 'Escribe aquí...' : '// Pega tu código aquí...'}"
+            oninput="updateJSON('${formType}')">${value}</textarea>
+    `;
+    
+    container.appendChild(block);
+    updateJSON(formType);
+}
+
+function updateJSON(formType) {
+    const container = document.getElementById(formType + '-blocks-container');
+    const blocks = [];
+    container.querySelectorAll('.block-item').forEach(item => {
+        blocks.push({
+            type: item.dataset.type,
+            value: item.querySelector('textarea').value
+        });
+    });
+    document.getElementById(formType + '_step_json').value = JSON.stringify(blocks);
+}
+
 // ─── Modal Editar ───
-function openEditModal(id, titulo, contenido, codigo) {
+function openEditModal(id, titulo, contenidoRaw, codigoRaw) {
     document.getElementById('edit_step_id').value = id;
     document.getElementById('edit_step_titulo').value = titulo;
-    document.getElementById('edit_step_contenido').value = contenido;
-    document.getElementById('edit_step_codigo').value = codigo;
+    
+    const container = document.getElementById('edit-blocks-container');
+    container.innerHTML = '';
+    
+    try {
+        // Intentar parsear como JSON
+        const blocks = JSON.parse(contenidoRaw);
+        if (Array.isArray(blocks)) {
+            blocks.forEach(b => addBlock('edit', b.type, b.value));
+        } else {
+            throw new Error('Not array');
+        }
+    } catch (e) {
+        // Fallback para contenido antiguo (Migración automática)
+        if (contenidoRaw) addBlock('edit', 'text', contenidoRaw);
+        if (codigoRaw) addBlock('edit', 'code', codigoRaw);
+    }
+    
     document.getElementById('editModal').classList.add('show');
     document.body.style.overflow = 'hidden';
+    updateJSON('edit');
 }
 
 function closeEditModal() {

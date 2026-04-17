@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 $ruta_id = $_GET['id'] ?? null;
 if (!$ruta_id) redirect('views/learning_routes.php');
@@ -35,6 +35,9 @@ if (isset($_POST['toggle_voto'])) {
             $pdo->prepare("DELETE FROM ruta_paso_votos WHERE paso_id = ? AND usuario_id = ?")->execute([$paso_id_voto, $user_id]);
         } else {
             $pdo->prepare("INSERT INTO ruta_paso_votos (paso_id, usuario_id) VALUES (?, ?)")->execute([$paso_id_voto, $user_id]);
+            
+            // Notificar al creador de la ruta
+            add_notification($pdo, $ruta->creador_id, 'like', "ha votado positivamente un paso en tu ruta: " . $ruta->titulo, "views/route_detail.php?id=$ruta_id#paso-$paso_id_voto");
         }
         header("Location: " . $_SERVER['REQUEST_URI'] . "#paso-" . $paso_id_voto);
         exit;
@@ -49,10 +52,16 @@ if (isset($_POST['post_comentario'])) {
     if ($user_id > 0 && !empty($contenido)) {
         $stmt = $pdo->prepare("INSERT INTO ruta_paso_comentarios (paso_id, usuario_id, contenido) VALUES (?, ?, ?)");
         $stmt->execute([$paso_id_com, $user_id, $contenido]);
+        
+        // Notificar al creador de la ruta
+        add_notification($pdo, $ruta->creador_id, 'comentario', "ha comentado un paso en tu ruta: " . $ruta->titulo, "views/route_detail.php?id=$ruta_id#paso-$paso_id_com");
+        
         header("Location: " . $_SERVER['REQUEST_URI'] . "#paso-" . $paso_id_com);
         exit;
     }
 }
+
+require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="animate-in" style="margin-top: 40px; display: grid; grid-template-columns: 320px 1fr; gap: 30px; align-items: start;">
@@ -70,17 +79,17 @@ if (isset($_POST['post_comentario'])) {
             <?php endif; ?>
         </div>
 
-        <div class="glass-card" style="padding: 15px;">
-            <h4 style="margin-bottom: 15px; font-size: 0.9rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 1px;">Contenido de la Ruta</h4>
-            <nav style="display: flex; flex-direction: column; gap: 8px;">
-                <?php foreach ($pasos as $p): ?>
-                    <a href="#paso-<?= $p->id ?>" class="nav-step-link">
-                        <span class="step-num"><?= $p->orden ?></span>
-                        <span class="step-txt"><?= htmlspecialchars($p->titulo) ?></span>
-                    </a>
-                <?php endforeach; ?>
-            </nav>
-        </div>
+            <div class="glass-card" style="position: sticky; top: 100px; padding: 25px; border: 1px solid var(--glass-border);">
+                <h5 style="text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Contenido de la Ruta</h5>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <?php foreach ($pasos as $i => $p): ?>
+                        <a href="#paso-<?= $p->id ?>" class="step-nav-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; text-decoration: none; color: var(--text-primary); transition: all 0.3s; border: 1px solid transparent;">
+                            <div class="step-number" style="width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; color: #64748b;"><?= $i + 1 ?></div>
+                            <div style="font-size: 0.9rem; font-weight: 500; line-height: 1.4; word-break: break-word; flex: 1;"><?= htmlspecialchars($p->titulo) ?></div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
     </aside>
 
     <!-- Contenido Principal -->
@@ -99,19 +108,43 @@ if (isset($_POST['post_comentario'])) {
                     </div>
                     
                     <div style="margin-bottom: 25px; line-height: 1.8; font-size: 1.1rem;">
-                        <?= nl2br(htmlspecialchars($p->contenido)) ?>
-                    </div>
+                        <?php
+                        $is_json = false;
+                        $blocks = json_decode($p->contenido, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($blocks)) {
+                            $is_json = true;
+                        }
 
-                <?php if ($p->codigo_snippet): ?>
-                    <div style="position: relative; margin-top: 20px;">
-                        <div style="background: #1e293b; padding: 20px; border-radius: 12px; overflow-x: auto; overflow-y: auto; max-height: 350px; border: 1px solid rgba(0,0,0,0.1);">
-                            <pre style="margin: 0; white-space: pre; overflow-x: auto;"><code style="font-family: 'Fira Code', monospace; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6;"><?= htmlspecialchars($p->codigo_snippet) ?></code></pre>
-                        </div>
-                        <button onclick="copyCode(this)" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="far fa-copy"></i> Copiar
-                        </button>
+                        if ($is_json): 
+                            foreach ($blocks as $b): 
+                                if ($b['type'] === 'text'): ?>
+                                    <div style="margin-bottom: 20px;"><?= nl2br(htmlspecialchars($b['value'])) ?></div>
+                                <?php elseif ($b['type'] === 'code'): ?>
+                                    <div style="position: relative; margin: 20px 0;">
+                                        <div style="background: #1e293b; padding: 20px; border-radius: 12px; overflow-x: auto; border: 1px solid rgba(0,0,0,0.1);">
+                                            <pre style="margin: 0; white-space: pre; overflow-x: auto;"><code style="font-family: 'Fira Code', monospace; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6;"><?= htmlspecialchars($b['value']) ?></code></pre>
+                                        </div>
+                                        <button onclick="copyCode(this)" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.75rem;">
+                                            <i class="far fa-copy"></i>
+                                        </button>
+                                    </div>
+                                <?php endif;
+                            endforeach;
+                        else: 
+                            // Renderizado antiguo (Compatibilidad)
+                            echo nl2br(htmlspecialchars($p->contenido));
+                            if ($p->codigo_snippet): ?>
+                                <div style="position: relative; margin-top: 20px;">
+                                    <div style="background: #1e293b; padding: 20px; border-radius: 12px; overflow-x: auto; border: 1px solid rgba(0,0,0,0.1);">
+                                        <pre style="margin: 0; white-space: pre; overflow-x: auto;"><code style="font-family: 'Fira Code', monospace; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6;"><?= htmlspecialchars($p->codigo_snippet) ?></code></pre>
+                                    </div>
+                                    <button onclick="copyCode(this)" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                                        <i class="far fa-copy"></i> Copiar
+                                    </button>
+                                </div>
+                            <?php endif;
+                        endif; ?>
                     </div>
-                <?php endif; ?>
 
                 <!-- Acciones Rápidas -->
                 <div style="margin-top: 30px; display: flex; gap: 20px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
@@ -161,50 +194,12 @@ if (isset($_POST['post_comentario'])) {
 </div>
 
 <style>
-.nav-step-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    text-decoration: none;
-    color: var(--text-primary);
-    border-radius: 10px;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
-    margin-bottom: 5px;
-}
+.step-nav-item:hover { background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.1); }
+.step-nav-item:hover .step-number { background: var(--primary-color) !important; color: white !important; }
 
-.nav-step-link:hover {
-    background: rgba(59, 130, 246, 0.05);
-    border-color: rgba(59, 130, 246, 0.2);
-    transform: translateX(5px);
-}
-
-.nav-step-link .step-num {
-    background: #f1f5f9;
-    color: var(--text-secondary);
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 0.75rem;
-    font-weight: bold;
-    flex-shrink: 0;
-}
-
-.nav-step-link:hover .step-num {
-    background: var(--primary-color);
-    color: #fff;
-}
-
-.nav-step-link .step-txt {
-    font-size: 0.9rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+@media (max-width: 992px) {
+    .route-layout { grid-template-columns: 1fr !important; }
+    .sidebar { order: -1; }
 }
 
 /* Efecto suave de scroll */
@@ -239,6 +234,7 @@ const stepsData = {};
 <?php foreach ($pasos as $p): ?>
 stepsData[<?= $p->id ?>] = {
     titulo: <?= json_encode($p->titulo, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    contenido: <?= json_encode($p->contenido, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
     codigo: <?= json_encode($p->codigo_snippet ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
 };
 <?php endforeach; ?>
@@ -260,10 +256,22 @@ function askAI(stepId) {
     document.body.style.overflow = 'hidden';
     content.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Gemini está analizando tu código...</p>';
     
+    let promptCodigo = step.codigo;
+    let promptContenido = step.contenido;
+    
+    // Si es JSON, extraer texto para la IA
+    try {
+        const blocks = JSON.parse(step.contenido);
+        if (Array.isArray(blocks)) {
+            promptContenido = blocks.filter(b => b.type === 'text').map(b => b.value).join('\n');
+            promptCodigo = blocks.filter(b => b.type === 'code').map(b => b.value).join('\n\n');
+        }
+    } catch(e) {}
+
     fetch('<?= BASE_URL ?>api/ai_assist.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `action=explain&titulo=${encodeURIComponent(step.titulo)}&codigo=${encodeURIComponent(step.codigo)}`
+        body: `action=explain&titulo=${encodeURIComponent(step.titulo)}&contenido=${encodeURIComponent(promptContenido)}&codigo=${encodeURIComponent(promptCodigo)}`
     })
     .then(res => res.json())
     .then(data => {
@@ -306,20 +314,20 @@ const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
             // Quitar clase active de todos
-            document.querySelectorAll('.nav-step-link').forEach(link => {
+            document.querySelectorAll('.step-nav-item').forEach(link => {
                 link.style.background = '';
                 link.style.borderColor = 'transparent';
-                link.querySelector('.step-num').style.background = '#f1f5f9';
-                link.querySelector('.step-num').style.color = 'var(--text-secondary)';
+                link.querySelector('.step-number').style.background = '#f1f5f9';
+                link.querySelector('.step-number').style.color = '#64748b';
             });
 
             // Añadir al activo
             const id = entry.target.getAttribute('id');
-            const activeLink = document.querySelector(`.nav-step-link[href="#${id}"]`);
+            const activeLink = document.querySelector(`.step-nav-item[href="#${id}"]`);
             if (activeLink) {
                 activeLink.style.background = 'rgba(59, 130, 246, 0.1)';
                 activeLink.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-                const activeNum = activeLink.querySelector('.step-num');
+                const activeNum = activeLink.querySelector('.step-number');
                 activeNum.style.background = 'var(--primary-color)';
                 activeNum.style.color = '#fff';
             }

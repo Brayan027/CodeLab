@@ -1,5 +1,7 @@
 <?php
+ob_start();
 session_start();
+date_default_timezone_set('America/Bogota');
 require_once __DIR__ . '/../config/db.php';
 
 // BASE_URL - método infalible basado en SCRIPT_NAME
@@ -19,8 +21,10 @@ function is_logged_in() {
     return isset($_SESSION['user_id']);
 }
 
-function redirect($path) {
-    header("Location: " . BASE_URL . ltrim($path, '/'));
+function redirect($url) {
+    // Asegurar que la URL sea absoluta
+    $redirect_url = (strpos($url, 'http') === 0) ? $url : BASE_URL . ltrim($url, '/');
+    header("Location: " . $redirect_url);
     exit();
 }
 
@@ -32,5 +36,14 @@ function get_user_data($pdo, $user_id) {
     $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = ?");
     $stmt->execute([$user_id]);
     return $stmt->fetch();
+}
+
+function add_notification($pdo, $usuario_id, $tipo, $mensaje, $url = '') {
+    if (!is_logged_in()) return;
+    $emisor_id = $_SESSION['user_id'];
+    if ($usuario_id == $emisor_id) return; // No notificarse a uno mismo
+    
+    $stmt = $pdo->prepare("INSERT INTO notificaciones (usuario_id, emisor_id, tipo, mensaje, url) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$usuario_id, $emisor_id, $tipo, $mensaje, $url]);
 }
 ?>

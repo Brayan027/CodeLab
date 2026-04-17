@@ -5,15 +5,53 @@ if (!is_logged_in()) redirect('views/login.php');
 
 $current_user_id = $_SESSION['user_id'];
 
+// Manejar Acciones (Bloquear / Archivar)
+if (isset($_GET['action'])) {
+    $target_id = $_GET['id_target'] ?? null;
+    if ($target_id && $target_id != $current_user_id) {
+        if ($_GET['action'] == 'block') {
+            $pdo->prepare("INSERT IGNORE INTO usuarios_bloqueados (usuario_id, bloqueado_id) VALUES (?, ?)")->execute([$current_user_id, $target_id]);
+        } elseif ($_GET['action'] == 'archive') {
+            $pdo->prepare("INSERT IGNORE INTO chats_archivados (usuario_id, contacto_id) VALUES (?, ?)")->execute([$current_user_id, $target_id]);
+        } elseif ($_GET['action'] == 'unarchive') {
+            $pdo->prepare("DELETE FROM chats_archivados WHERE usuario_id = ? AND contacto_id = ?")->execute([$current_user_id, $target_id]);
+        }
+    }
+    redirect('views/chat.php');
+}
+
+$search_contact = $_GET['q'] ?? '';
+$show_archived = isset($_GET['view']) && $_GET['view'] == 'archived';
+
 // Obtener lista de usuarios con los que se puede chatear (seguidos o que te siguen)
-$stmt = $pdo->prepare("
+// Excluimos bloqueados y filtramos por archivados
+$sql_contacts = "
     SELECT DISTINCT u.id, u.nombre_completo, u.usuario, u.avatar 
     FROM usuarios u
     JOIN seguidores s ON (u.id = s.siguiendo_id AND s.seguidor_id = ?) 
     OR (u.id = s.seguidor_id AND s.siguiendo_id = ?)
-    WHERE u.id != ?
-");
-$stmt->execute([$current_user_id, $current_user_id, $current_user_id]);
+    LEFT JOIN chats_archivados ca ON u.id = ca.contacto_id AND ca.usuario_id = ?
+    WHERE u.id != ? 
+    AND u.id NOT IN (SELECT bloqueado_id FROM usuarios_bloqueados WHERE usuario_id = ?)
+    AND u.id NOT IN (SELECT usuario_id FROM usuarios_bloqueados WHERE bloqueado_id = ?)";
+
+if ($show_archived) {
+    $sql_contacts .= " AND ca.id IS NOT NULL";
+} else {
+    $sql_contacts .= " AND ca.id IS NULL";
+}
+
+if ($search_contact) {
+    $sql_contacts .= " AND (u.nombre_completo LIKE ? OR u.usuario LIKE ?)";
+}
+
+$stmt = $pdo->prepare($sql_contacts);
+$params = [$current_user_id, $current_user_id, $current_user_id, $current_user_id, $current_user_id, $current_user_id];
+if ($search_contact) {
+    $params[] = "%$search_contact%";
+    $params[] = "%$search_contact%";
+}
+$stmt->execute($params);
 $contacts = $stmt->fetchAll();
 
 $destinatario_id = $_GET['id'] ?? null;
@@ -78,10 +116,18 @@ if ($destinatario_id) {
         font-weight: 600;
         font-size: 0.9rem;
         color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
     }
     .contact-handle {
         font-size: 0.75rem;
         color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
     }
     .chat-main {
         flex: 1;
@@ -220,21 +266,33 @@ if ($destinatario_id) {
     
     <!-- Sidebar de Contactos -->
     <div class="glass-card chat-sidebar">
-        <h3><i class="fas fa-comments" style="color: var(--primary-color);"></i> Contactos</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin:0;"><i class="fas fa-comments" style="color: var(--primary-color);"></i> Chat</h3>
+            <a href="?view=<?= $show_archived ? 'all' : 'archived' ?>" style="font-size: 0.8rem; color: var(--text-secondary);">
+                <i class="fas <?= $show_archived ? 'fa-arrow-left' : 'fa-archive' ?>"></i> <?= $show_archived ? 'Volver' : 'Archivados' ?>
+            </a>
+        </div>
+        
+        <!-- Buscador de Contactos -->
+        <div style="margin-bottom: 15px; position: relative;">
+            <form action="" method="GET">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8;"></i>
+                <input type="text" name="q" placeholder="Buscar contacto..." value="<?= htmlspecialchars($search_contact) ?>" 
+                       style="width: 100%; padding: 8px 12px 8px 35px; border-radius: 20px; border: 1px solid #e2e8f0; font-size: 0.85rem; outline: none;">
+            </form>
+        </div>
+
         <div class="contacts-list">
             <?php if (empty($contacts)): ?>
                 <div class="empty-contacts">
                     <i class="fas fa-user-friends"></i>
-                    <p>Sigue a otros usuarios para empezar a chatear.</p>
-                    <a href="<?= BASE_URL ?>views/users.php" class="btn btn-primary" style="font-size: 0.85rem; margin-top: 8px;">
-                        <i class="fas fa-search"></i> Buscar Usuarios
-                    </a>
+                    <p><?= $search_contact ? 'No se encontraron contactos.' : 'No tienes chats ' . ($show_archived ? 'archivados.' : 'activos.') ?></p>
                 </div>
             <?php else: ?>
                 <?php foreach ($contacts as $c): ?>
-                    <a href="<?= BASE_URL ?>views/chat.php?id=<?= $c->id ?>" class="contact-item <?= $destinatario_id == $c->id ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>views/chat.php?id=<?= $c->id ?><?= $show_archived ? '&view=archived' : '' ?>" class="contact-item <?= $destinatario_id == $c->id ? 'active' : '' ?>" title="<?= htmlspecialchars($c->nombre_completo) ?> (@<?= htmlspecialchars($c->usuario) ?>)">
                         <img class="contact-avatar" src="https://ui-avatars.com/api/?name=<?= urlencode($c->nombre_completo) ?>&size=42&background=random">
-                        <div>
+                        <div style="flex: 1; min-width: 0;">
                             <div class="contact-name"><?= htmlspecialchars($c->nombre_completo) ?></div>
                             <div class="contact-handle">@<?= htmlspecialchars($c->usuario) ?></div>
                         </div>
@@ -250,9 +308,23 @@ if ($destinatario_id) {
             <!-- Header del chat -->
             <div class="chat-header">
                 <img src="https://ui-avatars.com/api/?name=<?= urlencode($contacto_info->nombre_completo) ?>&background=random&size=38">
-                <div class="header-info">
+                <div class="header-info" style="flex: 1;">
                     <h4><?= htmlspecialchars($contacto_info->nombre_completo) ?></h4>
                     <span>@<?= htmlspecialchars($contacto_info->usuario) ?></span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <?php if ($show_archived): ?>
+                        <a href="?action=unarchive&id_target=<?= $destinatario_id ?>" class="btn btn-outline" style="padding: 8px 12px; font-size: 0.8rem;" title="Desarchivar">
+                            <i class="fas fa-box-open"></i>
+                        </a>
+                    <?php else: ?>
+                        <a href="?action=archive&id_target=<?= $destinatario_id ?>" class="btn btn-outline" style="padding: 8px 12px; font-size: 0.8rem;" title="Archivar Chat">
+                            <i class="fas fa-archive"></i>
+                        </a>
+                    <?php endif; ?>
+                    <a href="?action=block&id_target=<?= $destinatario_id ?>" class="btn btn-outline" style="padding: 8px 12px; font-size: 0.8rem; color: #ef4444; border-color: #fecaca;" title="Bloquear Usuario" onclick="return confirm('¿Seguro que quieres bloquear a este usuario?')">
+                        <i class="fas fa-ban"></i>
+                    </a>
                 </div>
             </div>
 

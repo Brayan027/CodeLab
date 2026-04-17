@@ -1,0 +1,7 @@
+# Configuración de ignore para CodeLab
+includes/config.php
+.env
+.DS_Store
+/vendor
+node_modules/
+*.log

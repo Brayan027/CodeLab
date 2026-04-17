@@ -16,6 +16,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['destinatario_id'], $_P
     if (!empty($mensaje)) {
         $stmt = $pdo->prepare("INSERT INTO chat_mensajes (remitente_id, destinatario_id, mensaje) VALUES (?, ?, ?)");
         $stmt->execute([$current_user_id, $destinatario_id, $mensaje]);
+        
+        // Notificación de mensaje
+        add_notification($pdo, $destinatario_id, 'mensaje', "te ha enviado un mensaje", "views/chat.php?id=$current_user_id");
+        
         echo json_encode(['status' => 'sent']);
     }
     exit;

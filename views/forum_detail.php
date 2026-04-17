@@ -6,8 +6,17 @@ if (!$pregunta_id) redirect('views/forum.php');
 
 $current_user_id = is_logged_in() ? $_SESSION['user_id'] : 0;
 
-// Obtener la pregunta
-$stmt = $pdo->prepare("SELECT p.*, u.usuario FROM foro_preguntas p JOIN usuarios u ON p.usuario_id = u.id WHERE p.id = ?");
+// Registrar Vista Única por IP
+$user_ip = $_SERVER['REMOTE_ADDR'];
+try {
+    $stmt_view = $pdo->prepare("INSERT IGNORE INTO foro_vistas (pregunta_id, ip_address) VALUES (?, ?)");
+    $stmt_view->execute([$pregunta_id, $user_ip]);
+} catch (PDOException $e) {}
+
+// Obtener la pregunta con total de vistas
+$stmt = $pdo->prepare("SELECT p.*, u.usuario, u.rol,
+        (SELECT COUNT(*) FROM foro_vistas WHERE pregunta_id = p.id) as total_vistas
+        FROM foro_preguntas p JOIN usuarios u ON p.usuario_id = u.id WHERE p.id = ?");
 $stmt->execute([$pregunta_id]);
 $pregunta = $stmt->fetch();
 
@@ -59,13 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST['contenido']) || isset
 }
 
 // Obtener respuestas
-$stmt = $pdo->prepare("SELECT r.*, u.usuario FROM foro_respuestas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.pregunta_id = ? ORDER BY r.es_solucion DESC, r.fecha_respuesta ASC");
+$stmt = $pdo->prepare("SELECT r.*, u.usuario, u.rol FROM foro_respuestas r JOIN usuarios u ON r.usuario_id = u.id WHERE r.pregunta_id = ? ORDER BY r.es_solucion DESC, r.fecha_respuesta ASC");
 $stmt->execute([$pregunta_id]);
 $respuestas = $stmt->fetchAll();
 ?>
 
-<div class="animate-in" style="margin-top: 40px; max-width: 900px; margin-left: auto; margin-right: auto;">
-    <div style="display: flex; gap: 20px; align-items: start;">
+<div class="animate-in" style="margin-top: 40px; display: grid; grid-template-columns: 1fr 300px; gap: 40px;">
+    <div>
+        <div style="display: flex; gap: 20px; align-items: start;">
         <!-- Columna de Votos para la Pregunta -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
             <button onclick="vote(<?= $pregunta->id ?>, null)" class="btn-vote <?= isset($usuario_voto_p) && $usuario_voto_p > 0 ? 'active' : '' ?>" id="vbtn-p-<?= $pregunta->id ?>">
@@ -78,10 +88,17 @@ $respuestas = $stmt->fetchAll();
         <div class="glass-card" style="flex: 1; margin-bottom: 30px; background: rgba(255, 255, 255, 0.5);">
             <h1 style="font-size: 2rem; margin-bottom: 10px;"><?= htmlspecialchars($pregunta->titulo) ?></h1>
             <div style="margin-bottom: 20px; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
-                Publicado por <a href="<?= BASE_URL ?>views/profile.php?id=<?= $pregunta->usuario_id ?>" style="color: var(--primary-color); font-weight: 600;">@<?= htmlspecialchars($pregunta->usuario) ?></a> · <?= date('d M, Y', strtotime($pregunta->fecha_creacion)) ?>
+                Publicado por <a href="<?= BASE_URL ?>views/profile.php?id=<?= $pregunta->usuario_id ?>" style="color: var(--primary-color); font-weight: 600;">@<?= htmlspecialchars($pregunta->usuario) ?></a> 
+                <?php if ($pregunta->rol == 'docente'): ?>
+                    <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; vertical-align: middle; margin-left: 5px;">DOCENTE</span>
+                <?php endif; ?>
+                · <?= date('d M, Y', strtotime($pregunta->fecha_creacion)) ?>
             </div>
             <div style="font-size: 1.1rem; line-height: 1.7;">
                 <?= nl2br(htmlspecialchars($pregunta->contenido)) ?>
+            </div>
+            <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-secondary);">
+                <i class="far fa-eye"></i> <?= $pregunta->total_vistas ?> vistas 
             </div>
             <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="background: rgba(59,130,246,0.1); color: var(--primary-color); padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">#<?= htmlspecialchars($pregunta->tags) ?></span>
@@ -129,11 +146,43 @@ $respuestas = $stmt->fetchAll();
 
                 <div class="glass-card" style="flex: 1; border-left: 4px solid <?= $r->es_solucion ? 'var(--accent-color)' : 'transparent' ?>; background: <?= $r->es_solucion ? 'rgba(16, 185, 129, 0.05)' : 'white' ?>;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 0.9rem;">
-                        <a href="<?= BASE_URL ?>views/profile.php?id=<?= $r->usuario_id ?>" style="color: var(--primary-color); font-weight: 700; text-decoration: none;">@<?= htmlspecialchars($r->usuario) ?></a>
+                        <div>
+                            <a href="<?= BASE_URL ?>views/profile.php?id=<?= $r->usuario_id ?>" style="color: var(--primary-color); font-weight: 700; text-decoration: none;">@<?= htmlspecialchars($r->usuario) ?></a>
+                            <?php if ($r->rol == 'docente'): ?>
+                                <span style="background: #f59e0b; color: white; padding: 1px 6px; border-radius: 4px; font-size: 0.6rem; font-weight: 800; margin-left: 4px;">DOCENTE</span>
+                            <?php endif; ?>
+                        </div>
                         <span style="color: var(--text-secondary);"><?= date('d M, Y H:i', strtotime($r->fecha_respuesta)) ?></span>
                     </div>
-                    <div style="line-height: 1.7;">
+                    <div style="line-height: 1.7; margin-bottom: 20px;">
                         <?= nl2br(htmlspecialchars($r->contenido)) ?>
+                    </div>
+
+                    <!-- Comentarios de la Respuesta -->
+                    <div style="border-top: 1px solid var(--glass-border); padding-top: 15px;">
+                        <?php
+                        $stmt_c = $pdo->prepare("SELECT c.*, u.usuario FROM foro_respuesta_comentarios c JOIN usuarios u ON c.usuario_id = u.id WHERE c.respuesta_id = ? ORDER BY c.fecha_comentario ASC");
+                        $stmt_c->execute([$r->id]);
+                        $comentarios = $stmt_c->fetchAll();
+                        foreach ($comentarios as $c):
+                        ?>
+                            <div style="font-size: 0.8rem; margin-bottom: 10px; padding-left: 10px; border-left: 2px solid #e2e8f0;">
+                                <span style="font-weight: 600; color: var(--primary-color);">@<?= $c->usuario ?></span>: 
+                                <?= htmlspecialchars($c->contenido) ?>
+                                <span style="color: #94a3b8; font-size: 0.7rem; margin-left: 5px;"><?= date('d M', strtotime($c->fecha_comentario)) ?></span>
+                            </div>
+                        <?php endforeach; ?>
+
+                        <?php if ($current_user_id): ?>
+                            <form action="<?= BASE_URL ?>api/forum_actions.php?action=comment" method="POST" style="margin-top: 10px;">
+                                <input type="hidden" name="respuesta_id" value="<?= $r->id ?>">
+                                <input type="hidden" name="pregunta_id" value="<?= $pregunta_id ?>">
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" name="contenido" placeholder="Añadir un comentario..." style="flex: 1; font-size: 0.75rem; border: none; background: #f8fafc; padding: 5px 12px; border-radius: 20px;">
+                                    <button type="submit" style="background: none; border: none; color: var(--primary-color); cursor: pointer;"><i class="fas fa-paper-plane"></i></button>
+                                </div>
+                            </form>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -167,6 +216,39 @@ $respuestas = $stmt->fetchAll();
             </form>
         <?php endif; ?>
     </div>
+    </div>
+
+    <!-- Barra Lateral -->
+    <aside>
+        <div class="glass-card" style="padding: 20px; position: sticky; top: 100px;">
+            <h4 style="margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+                <i class="fas fa-fire" style="color: #ef4444;"></i> Populares
+            </h4>
+            <?php
+            $stmt_pop = $pdo->prepare("
+                SELECT p.id, p.titulo, (SELECT COUNT(*) FROM foro_vistas WHERE pregunta_id = p.id) as vistas
+                FROM foro_preguntas p
+                ORDER BY vistas DESC
+                LIMIT 5
+            ");
+            $stmt_pop->execute();
+            $populares = $stmt_pop->fetchAll();
+            foreach ($populares as $p_pop):
+            ?>
+                <div style="margin-bottom: 15px;">
+                    <a href="forum_detail.php?id=<?= $p_pop->id ?>" style="text-decoration: none; color: var(--text-primary); font-size: 0.85rem; font-weight: 500; display: block; margin-bottom: 3px;">
+                        <?= htmlspecialchars($p_pop->titulo) ?>
+                    </a>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);"><?= $p_pop->vistas ?> vistas</span>
+                </div>
+            <?php endforeach; ?>
+
+            <div style="margin-top: 30px; padding: 15px; background: rgba(59,130,246,0.05); border-radius: 12px; border: 1px dashed var(--primary-color); font-size: 0.8rem; text-align: center;">
+                <p>¿No encuentras la solución? Pregunta a la comunidad.</p>
+                <a href="ask_question.php" style="color: var(--primary-color); font-weight: 700;">Hacer Pregunta</a>
+            </div>
+        </div>
+    </aside>
 </div>
 
 <style>

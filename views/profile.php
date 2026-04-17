@@ -71,6 +71,14 @@ $real_foro = $stmt->fetchColumn();
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM snippets WHERE usuario_id = ?");
 $stmt->execute([$profile_id]);
 $real_snippets = $stmt->fetchColumn();
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM rutas WHERE creador_id = ?");
+$stmt->execute([$profile_id]);
+$real_rutas = $stmt->fetchColumn();
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM ruta_paso_votos v JOIN pasos_ruta p ON v.paso_id = p.id JOIN rutas r ON p.ruta_id = r.id WHERE r.creador_id = ?");
+$stmt->execute([$profile_id]);
+$real_votos_rutas = $stmt->fetchColumn();
 ?>
 
 <div class="animate-in" style="margin-top: 40px;">
@@ -197,6 +205,14 @@ $real_snippets = $stmt->fetchColumn();
                 <div style="display: flex; justify-content: space-between;">
                     <span>Snippets Creados</span>
                     <span style="color: var(--accent-color); font-weight: bold;"><?= $real_snippets ?></span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Rutas de Aprendizaje</span>
+                    <span style="color: var(--primary-color); font-weight: bold;"><?= $real_rutas ?></span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Likes en mis Rutas</span>
+                    <span style="color: #f59e0b; font-weight: bold;"><?= $real_votos_rutas ?></span>
                 </div>
             </div>
             <p style="margin-top: 20px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;">
