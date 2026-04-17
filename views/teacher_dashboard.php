@@ -47,7 +47,7 @@ $grupos = $stmt->fetchAll();
         <h1>Panel de Control Docente</h1>
         <div style="display: flex; gap: 10px;">
             <a href="<?= BASE_URL ?>views/research_dashboard.php" class="btn btn-outline" style="border-color: #10b981; color: #10b981; font-weight: 700;">
-                <i class="fas fa-microscope"></i> Panel de Investigación (Tesis)
+                <i class="fas fa-microscope"></i> Panel de Investigación
             </a>
             <button onclick="document.getElementById('modalGrupo').style.display='flex'" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Crear Nuevo Grupo

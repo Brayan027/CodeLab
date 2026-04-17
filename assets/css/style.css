@@ -72,7 +72,8 @@ nav {
 
 .nav-links {
     display: flex;
-    gap: 2rem;
+    gap: 1rem;
+    align-items: center;
     list-style: none;
 }
 
@@ -149,4 +150,29 @@ nav {
 
 .animate-in {
     animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.7);
+}
+
+/* Enhancing Card Hover Effects */
+.glass-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.15);
 }

@@ -17,14 +17,15 @@
             <nav>
                 <a href="<?= BASE_URL ?>index.php" class="logo">CodeLab</a>
                 <ul class="nav-links">
-                    <li><a href="<?= BASE_URL ?>views/forum.php">Foros</a></li>
-                    <li><a href="<?= BASE_URL ?>views/learning_routes.php">Rutas</a></li>
-                    <li><a href="<?= BASE_URL ?>views/snippets.php">Repositorio</a></li>
-                    <li><a href="<?= BASE_URL ?>views/users.php">Comunidad</a></li>
+                    <li><a href="<?= BASE_URL ?>views/forum.php"><i class="far fa-comments"></i> Foros</a></li>
+                    <li><a href="<?= BASE_URL ?>views/learning_routes.php"><i class="fas fa-map-signs"></i> Rutas</a></li>
+                    <li><a href="<?= BASE_URL ?>views/snippets.php"><i class="fas fa-code"></i> Repositorio</a></li>
+                    <li><a href="<?= BASE_URL ?>views/users.php"><i class="fas fa-users"></i> Comunidad</a></li>
+                    
                     <?php if (is_logged_in()): ?>
-                        <li><a href="<?= BASE_URL ?>views/ai_mentor.php" style="color: var(--secondary-color);"><i class="fas fa-brain"></i> Mentor IA</a></li>
+                        <li><a href="<?= BASE_URL ?>views/ai_mentor.php" style="color: var(--secondary-color);"><i class="fas fa-brain"></i> IA</a></li>
                         
-                        <!-- Campanita de Notificaciones -->
+                        <!-- Notificaciones -->
                         <li style="position: relative;" id="notif-wrapper">
                             <a href="#" id="notif-bell" style="position: relative;">
                                 <i class="fas fa-bell"></i>
@@ -42,15 +43,28 @@
                         </li>
 
                         <?php if ($_SESSION['rol'] == 'docente'): ?>
-                            <li><a href="<?= BASE_URL ?>views/teacher_dashboard.php" style="color: var(--secondary-color); font-weight: 700;">Panel Docente</a></li>
-                            <li><a href="<?= BASE_URL ?>views/research_dashboard.php" style="color: #10b981; font-weight: 700;">Investigación</a></li>
+                            <li style="border-left: 1px solid var(--glass-border); padding-left: 10px; margin-left: 5px;">
+                                <a href="<?= BASE_URL ?>views/teacher_dashboard.php" style="color: var(--secondary-color); font-weight: 700;" title="Panel Docente"><i class="fas fa-chalkboard-teacher"></i> Docente</a>
+                            </li>
+                            <li>
+                                <a href="<?= BASE_URL ?>views/research_dashboard.php" style="color: #10b981; font-weight: 700;" title="Panel de Investigación"><i class="fas fa-microscope"></i> Investigación</a>
+                            </li>
                         <?php endif; ?>
-                        <li><a href="<?= BASE_URL ?>views/chat.php">Chat</a></li>
-                        <li><a href="<?= BASE_URL ?>views/profile.php">Mi Perfil</a></li>
-                        <li><a href="<?= BASE_URL ?>api/logout.php" class="btn btn-outline">Salir</a></li>
+                        
+                        <li style="border-left: 1px solid var(--glass-border); padding-left: 10px; margin-left: 5px;">
+                            <a href="<?= BASE_URL ?>views/chat.php" title="Chat"><i class="far fa-paper-plane"></i></a>
+                        </li>
+                        <li>
+                            <a href="<?= BASE_URL ?>views/profile.php" title="Mi Perfil">
+                                <img src="<?= BASE_URL ?>assets/img/<?= $_SESSION['avatar'] ?? 'default_avatar.png' ?>" 
+                                     onerror="this.src='https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['nombre'] ?? $_SESSION['usuario'] ?? 'User') ?>&background=random'" 
+                                     alt="Perfil" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
+                            </a>
+                        </li>
+                        <li><a href="<?= BASE_URL ?>api/logout.php" title="Salir" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i></a></li>
                     <?php else: ?>
-                        <li><a href="<?= BASE_URL ?>views/login.php">Iniciar Sesión</a></li>
-                        <li><a href="<?= BASE_URL ?>views/register.php" class="btn btn-primary">Registrarse</a></li>
+                        <li style="margin-left: 10px;"><a href="<?= BASE_URL ?>views/login.php">Entrar</a></li>
+                        <li><a href="<?= BASE_URL ?>views/register.php" class="btn btn-primary" style="padding: 8px 16px;">Crear Cuenta</a></li>
                     <?php endif; ?>
                 </ul>
             </nav>
