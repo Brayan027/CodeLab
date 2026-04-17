@@ -18,8 +18,8 @@ if ($action == 'explain' && !empty($codigo)) {
     // Definimos el prompt
     $prompt = "Actúa como un profesor experto en programación. Analiza el siguiente fragmento de código titulado '$titulo' y proporciona una explicación clara, lógica y educativa en formato HTML (usa etiquetas como <h4>, <p>, <ul>, <li>, <strong>). Menciona posibles errores o mejores prácticas. El código es:\n\n$codigo";
 
-    // Usando el modelo de última generación solicitado: gemini-3-flash-preview
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=" . $apiKey;
+    // Usando el modelo estable: gemini-1.5-flash
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
 
     $data = [
         "contents" => [

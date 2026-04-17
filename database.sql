@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS snippets (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Tabla de Foro: Preguntas
-CREATE TABLE IF NOT EXISTS foro_preguntas (
+CREATE TABLE IF NOT EXISTS forum_preguntas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     titulo VARCHAR(255) NOT NULL,
     contenido TEXT NOT NULL,
@@ -74,14 +74,14 @@ CREATE TABLE IF NOT EXISTS foro_preguntas (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Tabla de Foro: Respuestas
-CREATE TABLE IF NOT EXISTS foro_respuestas (
+CREATE TABLE IF NOT EXISTS forum_respuestas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pregunta_id INT NOT NULL,
     usuario_id INT NOT NULL,
     contenido TEXT NOT NULL,
     es_solucion BOOLEAN DEFAULT FALSE,
     fecha_respuesta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (pregunta_id) REFERENCES foro_preguntas(id) ON DELETE CASCADE,
+    FOREIGN KEY (pregunta_id) REFERENCES forum_preguntas(id) ON DELETE CASCADE,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -128,15 +128,15 @@ CREATE TABLE IF NOT EXISTS uso_ia_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Tabla de Votos (Likes) para foro
-CREATE TABLE IF NOT EXISTS foro_votos (
+CREATE TABLE IF NOT EXISTS forum_votos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT NOT NULL,
     pregunta_id INT DEFAULT NULL,
     respuesta_id INT DEFAULT NULL,
     fecha_voto TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-    FOREIGN KEY (pregunta_id) REFERENCES foro_preguntas(id) ON DELETE CASCADE,
-    FOREIGN KEY (respuesta_id) REFERENCES foro_respuestas(id) ON DELETE CASCADE,
+    FOREIGN KEY (pregunta_id) REFERENCES forum_preguntas(id) ON DELETE CASCADE,
+    FOREIGN KEY (respuesta_id) REFERENCES forum_respuestas(id) ON DELETE CASCADE,
     UNIQUE KEY (usuario_id, pregunta_id),
     UNIQUE KEY (usuario_id, respuesta_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -149,5 +149,27 @@ CREATE TABLE IF NOT EXISTS snippet_comentarios (
     contenido TEXT NOT NULL,
     fecha_comentario TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (snippet_id) REFERENCES snippets(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabla de Votos en Pasos de Rutas
+CREATE TABLE IF NOT EXISTS ruta_paso_votos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    paso_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    fecha_voto TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (paso_id) REFERENCES pasos_ruta(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    UNIQUE KEY (paso_id, usuario_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabla de Comentarios en Pasos de Rutas
+CREATE TABLE IF NOT EXISTS ruta_paso_comentarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    paso_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    contenido TEXT NOT NULL,
+    fecha_comentario TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (paso_id) REFERENCES pasos_ruta(id) ON DELETE CASCADE,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

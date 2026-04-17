@@ -15,6 +15,15 @@ if ($lenguaje_filter) {
     $params[] = $lenguaje_filter;
 }
 
+$search_query = $_GET['search'] ?? '';
+if ($search_query) {
+    $query .= " AND (s.titulo LIKE ? OR s.descripcion LIKE ? OR s.lenguaje LIKE ?)";
+    $term = "%$search_query%";
+    $params[] = $term;
+    $params[] = $term;
+    $params[] = $term;
+}
+
 $query .= " ORDER BY s.fecha_creacion DESC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
@@ -34,13 +43,26 @@ $langs = $langs_stmt->fetchAll();
         <?php endif; ?>
     </div>
 
-    <!-- Filtros -->
+    <!-- Filtros y Buscador -->
     <div class="glass-card" style="margin-bottom: 30px;">
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <a href="<?= BASE_URL ?>views/snippets.php" class="btn <?= !$lenguaje_filter ? 'btn-primary' : 'btn-outline' ?>" style="font-size: 0.85rem;">Todos</a>
-            <?php foreach ($langs as $l): ?>
-                <a href="<?= BASE_URL ?>views/snippets.php?lang=<?= urlencode($l->lenguaje) ?>" class="btn <?= $lenguaje_filter == $l->lenguaje ? 'btn-primary' : 'btn-outline' ?>" style="font-size: 0.85rem;"><?= $l->lenguaje ?></a>
-            <?php endforeach; ?>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <a href="<?= BASE_URL ?>views/snippets.php" class="btn <?= !$lenguaje_filter ? 'btn-primary' : 'btn-outline' ?>" style="font-size: 0.85rem;">Todos</a>
+                <?php foreach ($langs as $l): ?>
+                    <a href="<?= BASE_URL ?>views/snippets.php?lang=<?= urlencode($l->lenguaje) ?>" class="btn <?= $lenguaje_filter == $l->lenguaje ? 'btn-primary' : 'btn-outline' ?>" style="font-size: 0.85rem;"><?= $l->lenguaje ?></a>
+                <?php endforeach; ?>
+            </div>
+            
+            <form action="" method="GET" style="display: flex; gap: 10px; flex: 1; max-width: 400px;">
+                <?php if ($lenguaje_filter): ?>
+                    <input type="hidden" name="lang" value="<?= htmlspecialchars($lenguaje_filter) ?>">
+                <?php endif; ?>
+                <div style="position: relative; width: 100%;">
+                    <i class="fas fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                    <input type="text" name="search" class="form-control" placeholder="Buscar palabras clave..." value="<?= htmlspecialchars($search_query) ?>" style="padding-left: 40px; border-radius: 30px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="border-radius: 30px; padding: 0 20px;">Buscar</button>
+            </form>
         </div>
     </div>
 
