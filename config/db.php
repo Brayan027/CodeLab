@@ -1,9 +1,9 @@
 <?php
 // Configuración de la base de datos
-$host = 'localhost';
-$dbname = 'codelab_db';
-$username = 'root';
-$password = '';
+$host = 'mysql-tidvisd.alwaysdata.net';
+$dbname = 'tidvisd_codelab';
+$username = 'tidvisd';
+$password = '72323sdjhsd';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);

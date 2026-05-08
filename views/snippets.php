@@ -191,9 +191,12 @@ $langs = $langs_stmt->fetchAll();
                         <div style="display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 0.8rem;" title="Copias / Forks">
                             <i class="fas fa-code-branch" style="color: #10b981;"></i> <strong><?= $s->total_copias + $s->total_forks ?></strong>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 0.8rem;" title="Comentarios">
+                        <a href="<?= BASE_URL ?>views/snippet_detail.php?id=<?= $s->id ?>#comentarios" style="display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 0.8rem; text-decoration: none; transition: color 0.2s;" title="Comentarios" onmouseover="this.style.color='var(--primary-color)'" onmouseout="this.style.color='var(--text-secondary)'">
                             <i class="fas fa-comment" style="color: #3b82f6;"></i> <strong><?= $s->total_comentarios ?></strong>
-                        </div>
+                        </a>
+                        <a href="<?= BASE_URL ?>views/snippet_detail.php?id=<?= $s->id ?>" style="display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 0.8rem; text-decoration: none; margin-left: auto; transition: color 0.2s;" title="Ver snippet" onmouseover="this.style.color='var(--primary-color)'" onmouseout="this.style.color='var(--text-secondary)'">
+                            <i class="fas fa-eye" style="color: #a855f7;"></i> <strong>Ver</strong>
+                        </a>
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
