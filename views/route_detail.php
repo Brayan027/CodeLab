@@ -72,10 +72,16 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="glass-card" style="margin-bottom: 20px; border-left: 5px solid var(--primary-color);">
             <h1 style="font-size: 1.5rem; margin-bottom: 10px;"><?= htmlspecialchars($ruta->titulo) ?></h1>
             <p style="font-size: 0.85rem; color: var(--text-secondary);">Por <strong><?= htmlspecialchars($ruta->nombre_completo) ?></strong></p>
-            <?php if (is_logged_in() && $_SESSION['user_id'] == $ruta->creador_id): ?>
-                <a href="<?= BASE_URL ?>views/edit_route.php?id=<?= $ruta_id ?>" class="btn btn-outline" style="font-size: 0.75rem; margin-top: 15px; width: 100%; display: block; text-align: center;">
-                    <i class="fas fa-edit"></i> Editar Ruta
-                </a>
+            <?php if (is_logged_in()): ?>
+                <?php if ($_SESSION['user_id'] == $ruta->creador_id): ?>
+                    <a href="<?= BASE_URL ?>views/edit_route.php?id=<?= $ruta_id ?>" class="btn btn-outline" style="font-size: 0.75rem; margin-top: 15px; width: 100%; display: block; text-align: center;">
+                        <i class="fas fa-edit"></i> Editar Ruta
+                    </a>
+                <?php elseif (in_array($_SESSION['rol'], ['monitor', 'admin'])): ?>
+                    <button onclick="deleteRouteByModerator(<?= $ruta_id ?>)" class="btn btn-outline" style="font-size: 0.75rem; margin-top: 15px; width: 100%; display: block; text-align: center; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+                        <i class="fas fa-trash"></i> Eliminar (Moderador)
+                    </button>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 
@@ -342,6 +348,33 @@ document.querySelectorAll('.glass-card[id^="paso-"]').forEach(step => {
 function toggleComments(pasoId) {
     const el = document.getElementById(`comments-${pasoId}`);
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function deleteRouteByModerator(id) {
+    const motivo = prompt("¿Motivo de la eliminación de esta ruta? (Se registrará en el historial)");
+    if (!motivo || motivo.length < 5) return;
+
+    if (!confirm("¿Estás completamente seguro de eliminar esta ruta completa?")) return;
+
+    const formData = new FormData();
+    formData.append('tipo', 'ruta');
+    formData.append('item_id', id);
+    formData.append('motivo', motivo);
+
+    fetch('<?= BASE_URL ?>api/moderator_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.href = '<?= BASE_URL ?>views/learning_routes.php';
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(err => console.error('Error:', err));
 }
 </script>
 

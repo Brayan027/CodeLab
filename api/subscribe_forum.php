@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../includes/functions.php';
 header('Content-Type: application/json');
 
@@ -16,18 +16,21 @@ if (!$pregunta_id) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id FROM forum_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
+    $stmt = $pdo->prepare("SELECT id FROM foro_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
     $stmt->execute([$user_id, $pregunta_id]);
+    
     if ($stmt->fetch()) {
-        $stmt = $pdo->prepare("DELETE FROM forum_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
+        $stmt = $pdo->prepare("DELETE FROM foro_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
         $stmt->execute([$user_id, $pregunta_id]);
         echo json_encode(['status' => 'success', 'action' => 'unsubscribed']);
     } else {
-        $stmt = $pdo->prepare("INSERT INTO forum_suscripciones (usuario_id, pregunta_id) VALUES (?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO foro_suscripciones (usuario_id, pregunta_id) VALUES (?, ?)");
         $stmt->execute([$user_id, $pregunta_id]);
         echo json_encode(['status' => 'success', 'action' => 'subscribed']);
     }
-} catch (PDOException $e) {
+} catch (Exception $e) {
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+} catch (Error $e) {
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
 ?>

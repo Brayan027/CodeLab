@@ -90,7 +90,21 @@ $real_votos_rutas = $stmt->fetchColumn();
         <div style="flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: start;">
                 <div>
-                    <h1 style="margin: 0;"><?= $user_profile->nombre_completo ?></h1>
+                    <h1 style="margin: 0; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <?= $user_profile->nombre_completo ?>
+                        <?php 
+                        $role_styles = [
+                            'admin' => ['color' => '#ef4444', 'icon' => 'fa-user-shield'],
+                            'docente' => ['color' => '#f59e0b', 'icon' => 'fa-chalkboard-teacher'],
+                            'monitor' => ['color' => '#8b5cf6', 'icon' => 'fa-eye'],
+                            'estudiante' => ['color' => '#3b82f6', 'icon' => 'fa-user-graduate']
+                        ];
+                        $style = $role_styles[$user_profile->rol] ?? ['color' => '#64748b', 'icon' => 'fa-user'];
+                        ?>
+                        <span style="font-size: 0.75rem; background: <?= $style['color'] ?>; color: white; padding: 5px 15px; border-radius: 30px; text-transform: uppercase; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px <?= $style['color'] ?>44;">
+                            <i class="fas <?= $style['icon'] ?>"></i> <?= get_role_name($user_profile->rol) ?>
+                        </span>
+                    </h1>
                     <p style="color: var(--text-secondary);">@<?= $user_profile->usuario ?></p>
                 </div>
                 <?php if (is_logged_in()): ?>
@@ -113,8 +127,46 @@ $real_votos_rutas = $stmt->fetchColumn();
         </div>
     </div>
 
+    <!-- Mapa de Contribuciones Estilo GitHub -->
+    <div class="glass-card" style="margin-bottom: 30px; padding: 25px;">
+        <h3 style="margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-chart-line" style="color: var(--secondary-color);"></i> Historial de Contribuciones
+        </h3>
+        <div id="contribution-graph" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 10px; background: rgba(0,0,0,0.02); border-radius: 8px;">
+            <?php
+            $activity = getUserContributionData($pdo, $profile_id);
+            $today = new DateTime();
+            $start = (new DateTime())->modify('-364 days');
+            
+            // Generar los 365 días
+            for ($i = 0; $i <= 364; $i++) {
+                $dateStr = $start->format('Y-m-d');
+                $count = $activity[$dateStr] ?? 0;
+                
+                // Determinar color basado en intensidad
+                $color = '#ebedf0'; // Vacío
+                if ($count > 0 && $count <= 2) $color = '#9be9a8';
+                elseif ($count > 2 && $count <= 5) $color = '#40c463';
+                elseif ($count > 5 && $count <= 10) $color = '#30a14e';
+                elseif ($count > 10) $color = '#216e39';
+                
+                echo "<div class='contribution-day' title='$dateStr: $count contribuciones' style='width: 12px; height: 12px; background: $color; border-radius: 2px;'></div>";
+                $start->modify('+1 day');
+            }
+            ?>
+        </div>
+        <div style="margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-secondary);">
+            Menos <span style="width: 10px; height: 10px; background: #ebedf0; border-radius: 2px;"></span>
+            <span style="width: 10px; height: 10px; background: #9be9a8; border-radius: 2px;"></span>
+            <span style="width: 10px; height: 10px; background: #40c463; border-radius: 2px;"></span>
+            <span style="width: 10px; height: 10px; background: #30a14e; border-radius: 2px;"></span>
+            <span style="width: 10px; height: 10px; background: #216e39; border-radius: 2px;"></span> Más
+        </div>
+    </div>
+
     <!-- Actividad Reciente -->
     <div style="display: grid; grid-template-columns: 1fr 300px; gap: 30px;">
+
         <div>
             <h2 style="margin-bottom: 20px;">Rutas Publicadas</h2>
             <?php if (empty($user_routes)): ?>

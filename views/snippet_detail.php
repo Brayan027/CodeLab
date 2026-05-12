@@ -75,12 +75,16 @@ $comentarios = $stmt->fetchAll();
                 </p>
             </div>
             
-            <?php if (is_logged_in() && $_SESSION['user_id'] == $snippet->usuario_id): ?>
+            <?php if (is_logged_in()): ?>
                 <div style="display: flex; gap: 10px;">
-                    <a href="<?= BASE_URL ?>views/edit_snippet.php?id=<?= $snippet->id ?>" class="btn btn-outline" style="color: var(--primary-color);"><i class="fas fa-edit"></i></a>
-                    <form method="POST" onsubmit="return confirm('¿Estás seguro de eliminar este fragmento?');">
-                        <button type="submit" name="delete_snippet" class="btn btn-outline" style="color: #ef4444;"><i class="fas fa-trash"></i></button>
-                    </form>
+                    <?php if ($_SESSION['user_id'] == $snippet->usuario_id): ?>
+                        <a href="<?= BASE_URL ?>views/edit_snippet.php?id=<?= $snippet->id ?>" class="btn btn-outline" style="color: var(--primary-color);"><i class="fas fa-edit"></i></a>
+                        <form method="POST" onsubmit="return confirm('¿Estás seguro de eliminar este fragmento?');">
+                            <button type="submit" name="delete_snippet" class="btn btn-outline" style="color: #ef4444;"><i class="fas fa-trash"></i></button>
+                        </form>
+                    <?php elseif (in_array($_SESSION['rol'], ['monitor', 'admin'])): ?>
+                        <button onclick="deleteSnippetByModerator(<?= $snippet->id ?>)" class="btn btn-outline" style="color: #ef4444;" title="Eliminar como Moderador"><i class="fas fa-trash"></i></button>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -251,6 +255,33 @@ function evaluarIA(esUtil, btnElement) {
     .then(() => {
         btnElement.parentElement.innerHTML = '<p style="color: #10b981; font-weight:bold;"><i class="fas fa-check"></i> ¡Gracias por tu reporte! Esto ayuda a tu aprendizaje.</p>';
     });
+}
+
+function deleteSnippetByModerator(id) {
+    const motivo = prompt("¿Motivo de la eliminación de este fragmento? (Se registrará en el historial)");
+    if (!motivo || motivo.length < 5) return;
+
+    if (!confirm("¿Estás completamente seguro de eliminar este fragmento?")) return;
+
+    const formData = new FormData();
+    formData.append('tipo', 'snippet');
+    formData.append('item_id', id);
+    formData.append('motivo', motivo);
+
+    fetch('<?= BASE_URL ?>api/moderator_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.href = '<?= BASE_URL ?>views/snippets.php';
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(err => console.error('Error:', err));
 }
 </script>
 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/mailer/mailer_helper.php';
 
@@ -15,8 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
 
     if (empty($nombre) || empty($usuario) || empty($email) || empty($password)) {
         $error = 'Todos los campos son obligatorios.';
-    } elseif ($rol !== 'estudiante' && !verify_secret_code($pdo, $secret_code)) {
-        $error = 'El código secreto para docente/investigador es incorrecto.';
+    } elseif (($rol === 'docente' || $rol === 'monitor') && !verify_secret_code($pdo, $secret_code)) {
+        $error = 'El código secreto para este rol es incorrecto.';
     } else {
         $password_hash = password_hash($password, PASSWORD_BCRYPT);
         try {
@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
             
             if (sendEmail($email, $asunto, $cuerpo)) {
                 $pdo->commit();
-                $success = '¡Cuenta creada con éxito! Se ha enviado un código de verificación a tu correo.';
+                redirect("views/verify_email.php?email=" . urlencode($email));
             } else {
                 $pdo->rollBack();
                 $error = 'Error al enviar el correo de verificación. Inténtalo de nuevo.';
@@ -90,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
                 <label>¿Quién eres?</label>
                 <select name="rol" id="rol-selector" class="form-control" required style="cursor: pointer;">
                     <option value="estudiante">Soy Estudiante</option>
+                    <option value="monitor">Soy Monitor</option>
                     <option value="docente">Soy Docente / Investigador</option>
                 </select>
             </div>
@@ -109,7 +110,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
 <script>
 document.getElementById('rol-selector').addEventListener('change', function() {
     const container = document.getElementById('secret-code-container');
-    container.style.display = this.value === 'docente' ? 'block' : 'none';
+    const label = container.querySelector('label');
+    
+    if (this.value === 'docente' || this.value === 'monitor') {
+        container.style.display = 'block';
+        label.innerText = this.value === 'docente' ? 'Código Secreto (Para Docentes)' : 'Código Secreto (Para Monitores)';
+    } else {
+        container.style.display = 'none';
+    }
 });
 </script>
 

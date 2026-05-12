@@ -12,6 +12,6 @@ try {
     // Configurar el modo de obtención predeterminado a objetos
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_OBJ);
 } catch (PDOException $e) {
-    die("Error de conexión a la base de datos: " . $e->getMessage());
+    throw new Exception("Error de conexión a la base de datos: " . $e->getMessage());
 }
 ?>

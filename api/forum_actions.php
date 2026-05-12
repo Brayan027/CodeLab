@@ -24,6 +24,9 @@ if ($action == 'comment') {
         if ($owner) {
             add_notification($pdo, $owner->usuario_id, 'comentario', "ha comentado tu respuesta en el foro", "views/forum_detail.php?id=$pregunta_id");
         }
+
+        // NOTIFICAR SUSCRIPTORES
+        notify_forum_subscribers($pdo, $pregunta_id, $contenido, $user_id, 'comentario');
     }
     redirect("views/forum_detail.php?id=$pregunta_id");
 }

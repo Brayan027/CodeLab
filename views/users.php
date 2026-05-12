@@ -194,6 +194,20 @@ $users = $stmt->fetchAll();
                     <a href="<?= BASE_URL ?>views/profile.php?id=<?= $u->id ?>" style="text-decoration: none;">
                         <div class="user-name"><?= htmlspecialchars($u->nombre_completo) ?></div>
                     </a>
+                    <div style="margin-bottom: 8px;">
+                        <?php 
+                        $role_colors = [
+                            'admin' => '#ef4444',
+                            'docente' => 'var(--secondary-color)',
+                            'monitor' => '#8b5cf6',
+                            'estudiante' => 'var(--primary-color)'
+                        ];
+                        $role_color = $role_colors[$u->rol] ?? 'var(--text-secondary)';
+                        ?>
+                        <span style="font-size: 0.6rem; background: <?= $role_color ?>; color: white; padding: 1px 6px; border-radius: 10px; text-transform: uppercase; font-weight: 700;">
+                            <?= get_role_name($u->rol) ?>
+                        </span>
+                    </div>
                     <div class="user-handle">@<?= htmlspecialchars($u->usuario) ?></div>
                     <div class="user-bio">
                         <?= $u->bio ? htmlspecialchars(mb_substr($u->bio, 0, 80)) . (mb_strlen($u->bio) > 80 ? '...' : '') : 'Sin biografía' ?>
@@ -208,6 +222,12 @@ $users = $stmt->fetchAll();
                             <span class="stat-label">Rutas</span>
                         </span>
                     </div>
+
+                    <?php if (is_logged_in() && $_SESSION['rol'] == 'docente' && $_SESSION['user_id'] != $u->id): ?>
+                        <button onclick="openSuspendModal(<?= $u->id ?>, '<?= addslashes($u->nombre_completo) ?>')" class="btn" title="Suspender Usuario" style="position: absolute; top: 10px; right: 10px; color: #f59e0b; background: none; border: none; font-size: 1.1rem;">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    <?php endif; ?>
 
                     <?php if (is_logged_in() && $_SESSION['user_id'] != $u->id): ?>
                         <button 

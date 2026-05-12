@@ -22,6 +22,11 @@ if ($search_query) {
     $params = [$term, $term, $term, $term];
 }
 
+if ($filter == 'saved' && is_logged_in()) {
+    $sql .= " AND p.id IN (SELECT pregunta_id FROM foro_guardados WHERE usuario_id = ?)";
+    $params[] = $_SESSION['user_id'];
+}
+
 if ($filter == 'unanswered') {
     $sql .= " HAVING total_respuestas = 0";
 } elseif ($filter == 'popular') {
@@ -62,6 +67,9 @@ $preguntas = $stmt->fetchAll();
             <a href="forum.php?view=recent" style="text-decoration: none; font-size: 0.9rem; color: <?= $filter == 'recent' ? 'var(--primary-color)' : 'var(--text-secondary)' ?>; font-weight: 600; border-bottom: 2px solid <?= $filter == 'recent' ? 'var(--primary-color)' : 'transparent' ?>; padding-bottom: 5px;">Recientes</a>
             <a href="forum.php?view=popular" style="text-decoration: none; font-size: 0.9rem; color: <?= $filter == 'popular' ? 'var(--primary-color)' : 'var(--text-secondary)' ?>; font-weight: 600; border-bottom: 2px solid <?= $filter == 'popular' ? 'var(--primary-color)' : 'transparent' ?>; padding-bottom: 5px;">Más Votadas</a>
             <a href="forum.php?view=unanswered" style="text-decoration: none; font-size: 0.9rem; color: <?= $filter == 'unanswered' ? 'var(--primary-color)' : 'var(--text-secondary)' ?>; font-weight: 600; border-bottom: 2px solid <?= $filter == 'unanswered' ? 'var(--primary-color)' : 'transparent' ?>; padding-bottom: 5px;">Sin Respuesta</a>
+            <?php if (is_logged_in()): ?>
+                <a href="forum.php?view=saved" style="text-decoration: none; font-size: 0.9rem; color: <?= $filter == 'saved' ? 'var(--primary-color)' : 'var(--text-secondary)' ?>; font-weight: 600; border-bottom: 2px solid <?= $filter == 'saved' ? 'var(--primary-color)' : 'transparent' ?>; padding-bottom: 5px;">Guardados</a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -90,12 +98,21 @@ $preguntas = $stmt->fetchAll();
                     </div>
 
                     <div>
-                        <h3 style="margin-bottom: 10px;">
-                            <a href="<?= BASE_URL ?>views/forum_detail.php?id=<?= $p->id ?>" style="text-decoration: none; color: var(--text-primary);">
+                        <h3 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <a href="<?= BASE_URL ?>views/forum_detail.php?id=<?= $p->id ?>" style="text-decoration: none; color: var(--text-primary); flex: 1;">
                                 <?= htmlspecialchars($p->titulo) ?>
+                                <?php if ($p->tiene_solucion): ?>
+                                    <i class="fas fa-check-circle" style="color: #10b981; font-size: 1rem; margin-left: 5px;"></i>
+                                <?php endif; ?>
                             </a>
-                            <?php if ($p->tiene_solucion): ?>
-                                <i class="fas fa-check-circle" style="color: #10b981; font-size: 1rem; margin-left: 5px;"></i>
+                            <?php if (is_logged_in()): 
+                                $stmt_s = $pdo->prepare("SELECT id FROM foro_guardados WHERE usuario_id = ? AND pregunta_id = ?");
+                                $stmt_s->execute([$_SESSION['user_id'], $p->id]);
+                                $is_saved = $stmt_s->fetch();
+                            ?>
+                                <button onclick="event.stopPropagation(); toggleSave(<?= $p->id ?>, this)" class="btn" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: <?= $is_saved ? 'var(--accent-color)' : '#94a3b8' ?>; padding: 0 0 0 10px;">
+                                    <i class="<?= $is_saved ? 'fas' : 'far' ?> fa-bookmark"></i>
+                                </button>
                             <?php endif; ?>
                         </h3>
                         <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px; line-height: 1.6;">

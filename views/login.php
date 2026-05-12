@@ -47,7 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
                 <input type="text" name="usuario_email" class="form-control" required>
             </div>
             <div class="form-group">
-                <label>Contraseña</label>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label>Contraseña</label>
+                    <a href="<?= BASE_URL ?>views/forgot_password.php" style="font-size: 0.75rem; color: var(--primary-color);">¿Olvidaste tu contraseña?</a>
+                </div>
                 <input type="password" name="password" class="form-control" required>
             </div>
             <button type="submit" name="login" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Entrar</button>

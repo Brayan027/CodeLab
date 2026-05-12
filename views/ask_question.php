@@ -43,7 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ask'])) {
             </div>
             <div class="form-group">
                 <label>Explicación del Problema</label>
-                <textarea name="contenido" class="form-control" rows="10" placeholder="Incluye el error y lo que has intentado..." required></textarea>
+                <div style="margin-bottom: 5px;">
+                    <button type="button" onclick="openCodeModal('contenido-pregunta')" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-code"></i> Insertar Bloque de Código
+                    </button>
+                </div>
+                <textarea name="contenido" id="contenido-pregunta" class="form-control" rows="10" placeholder="Incluye el error y lo que has intentado..." required></textarea>
             </div>
             <div class="form-group">
                 <label>Etiquetas (Separadas por comas)</label>
@@ -57,4 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ask'])) {
     </div>
 </div>
 
+<script>
+function insertCodeBlock(id) { openCodeModal(id); }
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

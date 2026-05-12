@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../includes/header.php';
 
 $pregunta_id = (int)($_GET['id'] ?? 0);
@@ -49,10 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST['contenido']) || isset
         
         if (!empty($contenido) && $target_pregunta_id > 0) {
             try {
-                                
+                $stmt = $pdo->prepare("INSERT INTO foro_respuestas (pregunta_id, usuario_id, contenido) VALUES (?, ?, ?)");
+                $stmt->execute([$target_pregunta_id, $session_user_id, $contenido]);
                 
                 // NOTIFICAR SUSCRIPTORES
-                notify_forum_subscribers($pdo, $target_pregunta_id, $contenido, $session_user_id);
+                notify_forum_subscribers($pdo, $target_pregunta_id, $contenido, $session_user_id, 'respuesta');
                 
                 // Registro de actividad para el docente
                 $stmt_log = $pdo->prepare("INSERT INTO uso_ia_logs (usuario_id, accion, titulo_conctexto) VALUES (?, 'foro_respuesta', ?)");
@@ -88,7 +89,20 @@ $respuestas = $stmt->fetchAll();
 
         <!-- Pregunta Principal -->
         <div class="glass-card" style="flex: 1; margin-bottom: 30px; background: rgba(255, 255, 255, 0.5);">
-            <h1 style="font-size: 2rem; margin-bottom: 10px;"><?= htmlspecialchars($pregunta->titulo) ?></h1>
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <h1 style="margin: 0; font-size: 2rem; color: var(--text-primary); flex: 1;">
+                    <?= htmlspecialchars($pregunta->titulo) ?>
+                </h1>
+                <?php if ($current_user_id): 
+                    $stmt_s = $pdo->prepare("SELECT id FROM foro_guardados WHERE usuario_id = ? AND pregunta_id = ?");
+                    $stmt_s->execute([$current_user_id, $pregunta_id]);
+                    $is_saved = $stmt_s->fetch();
+                ?>
+                    <button onclick="toggleSave(<?= $pregunta_id ?>, this)" class="btn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: <?= $is_saved ? 'var(--accent-color)' : '#94a3b8' ?>;" title="Guardar para después">
+                        <i class="<?= $is_saved ? 'fas' : 'far' ?> fa-bookmark"></i>
+                    </button>
+                <?php endif; ?>
+            </div>
             <div style="margin-bottom: 20px; color: var(--text-secondary); font-size: 0.9rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
                 Publicado por <a href="<?= BASE_URL ?>views/profile.php?id=<?= $pregunta->usuario_id ?>" style="color: var(--primary-color); font-weight: 600;">@<?= htmlspecialchars($pregunta->usuario) ?></a> 
                 <?php if ($pregunta->rol == 'docente'): ?>
@@ -96,23 +110,34 @@ $respuestas = $stmt->fetchAll();
                 <?php endif; ?>
                 Â· <?= date('d M, Y', strtotime($pregunta->fecha_creacion)) ?>
             </div>
-            <div style="font-size: 1.1rem; line-height: 1.7;">
-                <?= nl2br(htmlspecialchars($pregunta->contenido)) ?>
+                        <div style="font-size: 1.1rem; line-height: 1.7;">
+                <?= parseContent($pregunta->contenido) ?>
             </div>
-                                    <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-secondary);">
+            
+            <div style="margin-top: 15px; display: flex; align-items: center; gap: 15px;">
                 <?php if (is_logged_in()): 
-                    $stmt_sub = $pdo->prepare("SELECT id FROM forum_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
-                    $stmt_sub->execute([$_SESSION['user_id'], $pregunta_id]);
-                    $is_sub = $stmt_sub->fetch();
+                    $is_sub = false;
+                    try {
+                        $stmt_sub = $pdo->prepare("SELECT id FROM foro_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
+                        $stmt_sub->execute([$_SESSION['user_id'], $pregunta_id]);
+                        $is_sub = $stmt_sub->fetch();
+                    } catch (PDOException $e) {
+                        // La tabla podría no existir aún
+                    }
                 ?>
-                    <button id="btn-subscribe" onclick="toggleSubscribe(<?= $pregunta_id ?>)" class="btn" style="background: <?= $is_sub ? '#94a3b8' : 'var(--primary-color)' ?>; color: white; padding: 5px 10px; font-size: 0.7rem;">
-                        <i class="fas fa-bell"></i> <?= $is_sub ? 'Anular suscripción' : 'Suscribirse a este foro' ?>
+                    <button id="btn-subscribe" onclick="toggleSubscribe(<?= $pregunta_id ?>)" class="btn" style="background: <?= $is_sub ? '#94a3b8' : 'var(--primary-color)' ?>; color: white; padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; transition: all 0.3s;">
+                        <i id="sub-icon" class="<?= $is_sub ? 'fas' : 'far' ?> fa-bell"></i> 
+                        <span id="sub-text"><?= $is_sub ? 'Suscrito (Anular)' : 'Suscribirse al Foro' ?></span>
                     </button>
                     <script>
                     function toggleSubscribe(id) {
                         const btn = document.getElementById('btn-subscribe');
+                        const icon = document.getElementById('sub-icon');
+                        const text = document.getElementById('sub-text');
+                        
                         const formData = new FormData();
                         formData.append('pregunta_id', id);
+                        
                         fetch('<?= BASE_URL ?>api/subscribe_forum.php', {
                             method: 'POST',
                             body: formData
@@ -122,49 +147,20 @@ $respuestas = $stmt->fetchAll();
                             if (data.status === 'success') {
                                 if (data.action === 'subscribed') {
                                     btn.style.background = '#94a3b8';
-                                    btn.innerHTML = '<i class="fas fa-bell"></i> Anular suscripción';
+                                    icon.className = 'fas fa-bell';
+                                    text.innerText = 'Suscrito (Anular)';
                                 } else {
                                     btn.style.background = 'var(--primary-color)';
-                                    btn.innerHTML = '<i class="fas fa-bell"></i> Suscribirse a este foro';
+                                    icon.className = 'far fa-bell';
+                                    text.innerText = 'Suscribirse al Foro';
                                 }
                             }
-                        });
-                    }
-                    </script>
-                <?php endif; ?>
-                <?php if (is_logged_in()): 
-                    $stmt_sub = $pdo->prepare("SELECT id FROM forum_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
-                    $stmt_sub->execute([$_SESSION['user_id'], $pregunta_id]);
-                    $is_sub = $stmt_sub->fetch();
-                ?>
-                    <button id="btn-subscribe" onclick="toggleSubscribe(<?= $pregunta_id ?>)" class="btn" style="background: <?= $is_sub ? '#94a3b8' : 'var(--primary-color)' ?>; color: white; padding: 5px 10px; font-size: 0.7rem;">
-                        <i class="fas fa-bell"></i> <?= $is_sub ? 'Anular suscripción' : 'Suscribirse a este foro' ?>
-                    </button>
-                    <script>
-                    function toggleSubscribe(id) {
-                        const btn = document.getElementById('btn-subscribe');
-                        const formData = new FormData();
-                        formData.append('pregunta_id', id);
-                        fetch('<?= BASE_URL ?>api/subscribe_forum.php', {
-                            method: 'POST',
-                            body: formData
                         })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                if (data.action === 'subscribed') {
-                                    btn.style.background = '#94a3b8';
-                                    btn.innerHTML = '<i class="fas fa-bell"></i> Anular suscripción';
-                                } else {
-                                    btn.style.background = 'var(--primary-color)';
-                                    btn.innerHTML = '<i class="fas fa-bell"></i> Suscribirse a este foro';
-                                }
-                            }
-                        });
+                        .catch(err => console.error('Error:', err));
                     }
                     </script>
                 <?php endif; ?>
-                <i class="far fa-eye"></i> <?= $pregunta->total_vistas ?> vistas 
+                <span style="color: var(--text-secondary); font-size: 0.85rem;"><i class="far fa-eye"></i> <?= $pregunta->total_vistas ?> vistas</span>
             </div>
             <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="background: rgba(59,130,246,0.1); color: var(--primary-color); padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">#<?= htmlspecialchars($pregunta->tags) ?></span>
@@ -173,6 +169,14 @@ $respuestas = $stmt->fetchAll();
                     <a href="#form-respuesta" class="btn btn-primary" style="font-size: 0.9rem;">
                         <i class="fas fa-reply"></i> Responder a esta pregunta
                     </a>
+                    <?php if (in_array($_SESSION['rol'], ['monitor', 'admin'])): ?>
+                        <button onclick="deleteItem('pregunta', <?= $pregunta_id ?>)" class="btn" style="background: rgba(239, 68, 68, 0.1); color: #dc2626; padding: 5px 15px; border-radius: 20px; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.8rem; cursor: pointer; margin-left: 10px;">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    <?php endif; ?>
+                    <button onclick="reportItem('pregunta', <?= $pregunta_id ?>)" class="btn" style="background: rgba(239, 68, 68, 0.1); color: #dc2626; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.8rem; cursor: pointer; margin-left: 10px;">
+                        <i class="fas fa-flag"></i> Reportar
+                    </button>
                 <?php endif; ?>
             </div>
         </div>
@@ -219,9 +223,19 @@ $respuestas = $stmt->fetchAll();
                             <?php endif; ?>
                         </div>
                         <span style="color: var(--text-secondary);"><?= date('d M, Y H:i', strtotime($r->fecha_respuesta)) ?></span>
+                        <?php if ($current_user_id): ?>
+                            <?php if (in_array($_SESSION['rol'], ['monitor', 'admin'])): ?>
+                                <button onclick="deleteItem('respuesta', <?= $r->id ?>)" class="btn" style="background: rgba(239, 68, 68, 0.1); color: #dc2626; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.8rem; cursor: pointer; margin-left: 10px;">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </button>
+                            <?php endif; ?>
+                            <button onclick="reportItem('respuesta', <?= $r->id ?>)" style="background:none; border:none; color: #94a3b8; cursor:pointer; font-size: 0.8rem; margin-left: 10px;" title="Reportar contenido inapropiado">
+                                <i class="fas fa-flag"></i>
+                            </button>
+                        <?php endif; ?>
                     </div>
                     <div style="line-height: 1.7; margin-bottom: 20px;">
-                        <?= nl2br(htmlspecialchars($r->contenido)) ?>
+                        <?= parseContent($r->contenido) ?>
                     </div>
 
                     <!-- Comentarios de la Respuesta -->
@@ -275,7 +289,12 @@ $respuestas = $stmt->fetchAll();
 
             <form action="<?= BASE_URL ?>views/forum_detail.php?id=<?= $pregunta_id ?>" method="POST">
                 <input type="hidden" name="pregunta_id_hidden" value="<?= $pregunta_id ?>">
-                <textarea name="contenido" class="form-control" rows="6" placeholder="Aporta una soluciÃ³n clara o sugerencia..." required style="resize: vertical;"></textarea>
+                <div style="margin-bottom: 5px;">
+                    <button type="button" onclick="openCodeModal('contenido-respuesta')" class="btn" style="padding: 4px 10px; font-size: 0.75rem; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-code"></i> Insertar Bloque de Código
+                    </button>
+                </div>
+                <textarea name="contenido" id="contenido-respuesta" class="form-control" rows="6" placeholder="Aporta una soluciÃ³n clara o sugerencia..." required style="resize: vertical;"></textarea>
                 <div style="text-align: right; margin-top: 20px;">
                     <button type="submit" name="submit_answer" class="btn btn-primary" style="padding: 12px 40px; font-size: 1rem;">Publicar Respuesta</button>
                 </div>
@@ -377,9 +396,92 @@ function markSolve(rId) {
         else location.reload();
     });
 }
+
+function reportItem(tipo, id) {
+    const motivo = prompt("¿Por qué deseas reportar este contenido?\n(Mínimo 5 caracteres)");
+    if (!motivo || motivo.length < 5) return;
+
+    const formData = new FormData();
+    formData.append('tipo', tipo);
+    formData.append('item_id', id);
+    formData.append('motivo', motivo);
+
+    fetch('<?= BASE_URL ?>api/report_item.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success && data.message.includes("eliminado")) {
+            location.reload();
+        }
+    })
+    .catch(err => console.error('Error:', err));
+}
+
+function deleteItem(tipo, id) {
+    console.log('Iniciando eliminación:', tipo, id);
+    const motivo = prompt("¿Motivo de la eliminación? (Se registrará en el historial)");
+    if (!motivo || motivo.length < 5) {
+        console.log('Eliminación cancelada: motivo insuficiente');
+        return;
+    }
+
+    if (!confirm("¿Estás completamente seguro de eliminar este contenido? Esta acción no se puede deshacer.")) return;
+
+    const formData = new FormData();
+    formData.append('tipo', tipo);
+    formData.append('item_id', id);
+    formData.append('motivo', motivo);
+
+    fetch('<?= BASE_URL ?>api/moderator_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => {
+        console.log('Respuesta recibida:', res.status);
+        return res.json();
+    })
+    .then(data => {
+        console.log('Datos JSON:', data);
+        if (data.success) {
+            alert(data.message);
+            if (tipo === 'pregunta') {
+                location.href = '<?= BASE_URL ?>views/forum.php';
+            } else {
+                location.reload();
+            }
+        } else {
+            alert("Error del servidor: " + (data.error || data.message || "Desconocido"));
+        }
+    })
+    .catch(err => {
+        console.error('Error en fetch:', err);
+        alert('Error de conexión o de red. Revisa la consola.');
+    });
+}
+
+function insertCodeBlock(id) {
+    const textarea = document.getElementById(id);
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after  = text.substring(end, text.length);
+    const selection = text.substring(start, end) || 'tu_codigo_aqui';
+    
+    textarea.value = before + "\n```javascript\n" + selection + "\n```\n" + after;
+    textarea.focus();
+    textarea.selectionStart = start + 13;
+    textarea.selectionEnd = start + 13 + selection.length;
+}
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
+
+
+
 
 
 
