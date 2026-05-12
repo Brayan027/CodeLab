@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     valor TEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT IGNORE INTO app_settings (clave, valor) VALUES ('secret_code_docente', '###De34?');
+INSERT IGNORE INTO app_settings (clave, valor) VALUES ('secret_code_docente', 'CAMBIAR_ESTO');
 
 -- Tabla para guardar foros favoritos
 CREATE TABLE IF NOT EXISTS foro_guardados (

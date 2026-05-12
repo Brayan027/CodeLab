@@ -1,5 +1,5 @@
 <?php
-$base = 'AQ.Ab8RN6%ssCAA%s%sCVvD6xkG9OZWatRw3Jyrzlu_Y7Fay1xz4HxQg';
+$base = 'PLACEHOLDER_KEY_%s_%s_%s';
 $char1 = ['I', 'l', '1', 'i'];
 $char2 = ['i', 'l', 'I', '1'];
 $char3 = ['I', 'l', 'i', '1'];

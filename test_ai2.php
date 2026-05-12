@@ -1,5 +1,6 @@
 <?php
-$apiKey = 'AIzaSyCC7EcjCGeHwYSFt0B4Y9IMg_oHe6nTSVU';
+require_once 'includes/env_loader.php';
+$apiKey = getenv('GEMINI_API_KEY');
 $url = "https://generativelanguage.googleapis.com/v1beta/models?key=" . $apiKey;
 
 $ch = curl_init($url);

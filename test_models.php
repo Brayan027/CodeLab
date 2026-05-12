@@ -1,5 +1,6 @@
 <?php
-$key = 'AQ.Ab8RN6IsCAAilCVvD6xkG9OZWatRw3Jyrzlu_Y7Fay1xz4HxQg';
+require_once 'includes/env_loader.php';
+$key = getenv('GEMINI_API_KEY');
 $models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
 
 foreach ($models as $model) {
