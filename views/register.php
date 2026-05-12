@@ -1,5 +1,6 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/mailer/mailer_helper.php';
 
 $error = '';
 $success = '';
@@ -9,19 +10,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
     $usuario = sanitize($_POST['usuario']);
     $email = sanitize($_POST['email']);
     $password = $_POST['password'];
+    $rol = $_POST['rol'] ?? 'estudiante';
+    $secret_code = $_POST['secret_code'] ?? '';
 
     if (empty($nombre) || empty($usuario) || empty($email) || empty($password)) {
         $error = 'Todos los campos son obligatorios.';
+    } elseif ($rol !== 'estudiante' && !verify_secret_code($pdo, $secret_code)) {
+        $error = 'El código secreto para docente/investigador es incorrecto.';
     } else {
-        $rol = $_POST['rol'] ?? 'estudiante';
-        // Encriptar contraseña
         $password_hash = password_hash($password, PASSWORD_BCRYPT);
-
         try {
+            $pdo->beginTransaction();
             $stmt = $pdo->prepare("INSERT INTO usuarios (nombre_completo, usuario, email, password, rol) VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$nombre, $usuario, $email, $password_hash, $rol]);
-            $success = '¡Cuenta creada con éxito! Ya puedes iniciar sesión.';
+            $user_id = $pdo->lastInsertId();
+
+            $codigo_verificacion = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+            $expira = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            
+            $stmt = $pdo->prepare("INSERT INTO verificaciones_email (usuario_id, codigo, expira_en) VALUES (?, ?, ?)");
+            $stmt->execute([$user_id, $codigo_verificacion, $expira]);
+
+            $asunto = "Bienvenido a CodeLab - Verifica tu correo";
+            $cuerpo = "<h1>Hola $nombre!</h1><p>Gracias por unirte a CodeLab. Tu código de verificación es: <b>$codigo_verificacion</b></p><p>Ingresa este código para activar tu cuenta.</p>";
+            
+            if (sendEmail($email, $asunto, $cuerpo)) {
+                $pdo->commit();
+                $success = '¡Cuenta creada con éxito! Se ha enviado un código de verificación a tu correo.';
+            } else {
+                $pdo->rollBack();
+                $error = 'Error al enviar el correo de verificación. Inténtalo de nuevo.';
+            }
         } catch (PDOException $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
             if ($e->getCode() == 23000) {
                 $error = 'El usuario o el email ya están registrados.';
             } else {
@@ -67,10 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
             </div>
             <div class="form-group">
                 <label>¿Quién eres?</label>
-                <select name="rol" class="form-control" required style="cursor: pointer;">
+                <select name="rol" id="rol-selector" class="form-control" required style="cursor: pointer;">
                     <option value="estudiante">Soy Estudiante</option>
                     <option value="docente">Soy Docente / Investigador</option>
                 </select>
+            </div>
+            <div id="secret-code-container" class="form-group" style="display: none;">
+                <label>Código Secreto (Para Docentes)</label>
+                <input type="text" name="secret_code" class="form-control" placeholder="Código de validación">
             </div>
             <button type="submit" name="register" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Crear Cuenta</button>
         </form>
@@ -80,5 +105,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register'])) {
         </p>
     </div>
 </div>
+
+<script>
+document.getElementById('rol-selector').addEventListener('change', function() {
+    const container = document.getElementById('secret-code-container');
+    container.style.display = this.value === 'docente' ? 'block' : 'none';
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

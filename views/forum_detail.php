@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/header.php';
 
 $pregunta_id = (int)($_GET['id'] ?? 0);
@@ -6,7 +6,7 @@ if (!$pregunta_id) redirect('views/forum.php');
 
 $current_user_id = is_logged_in() ? $_SESSION['user_id'] : 0;
 
-// Registrar Vista Única por IP
+// Registrar Vista Ãšnica por IP
 $user_ip = $_SERVER['REMOTE_ADDR'];
 try {
     $stmt_view = $pdo->prepare("INSERT IGNORE INTO foro_vistas (pregunta_id, ip_address) VALUES (?, ?)");
@@ -38,19 +38,21 @@ if ($current_user_id) {
 // Manejar nueva respuesta
 $answer_error = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST['contenido']) || isset($_POST['submit_answer']))) {
-    // Re-verificamos sesión justo aquí
+    // Re-verificamos sesiÃ³n justo aquÃ­
     $session_user_id = $_SESSION['user_id'] ?? null;
     
     if (!$session_user_id) {
-        $answer_error = "Sesión perdida. Por favor, vuelve a iniciar sesión.";
+        $answer_error = "SesiÃ³n perdida. Por favor, vuelve a iniciar sesiÃ³n.";
     } else {
         $target_pregunta_id = (int)($_POST['pregunta_id_hidden'] ?? $pregunta_id);
         $contenido = trim($_POST['contenido'] ?? '');
         
         if (!empty($contenido) && $target_pregunta_id > 0) {
             try {
-                $stmt = $pdo->prepare("INSERT INTO foro_respuestas (pregunta_id, usuario_id, contenido) VALUES (?, ?, ?)");
-                $stmt->execute([$target_pregunta_id, $session_user_id, $contenido]);
+                                
+                
+                // NOTIFICAR SUSCRIPTORES
+                notify_forum_subscribers($pdo, $target_pregunta_id, $contenido, $session_user_id);
                 
                 // Registro de actividad para el docente
                 $stmt_log = $pdo->prepare("INSERT INTO uso_ia_logs (usuario_id, accion, titulo_conctexto) VALUES (?, 'foro_respuesta', ?)");
@@ -62,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST['contenido']) || isset
                 $answer_error = "Error de base de datos: " . $e->getMessage();
             }
         } else {
-            $answer_error = "Por favor, escribe un contenido válido.";
+            $answer_error = "Por favor, escribe un contenido vÃ¡lido.";
         }
     }
 }
@@ -92,12 +94,76 @@ $respuestas = $stmt->fetchAll();
                 <?php if ($pregunta->rol == 'docente'): ?>
                     <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; vertical-align: middle; margin-left: 5px;">DOCENTE</span>
                 <?php endif; ?>
-                · <?= date('d M, Y', strtotime($pregunta->fecha_creacion)) ?>
+                Â· <?= date('d M, Y', strtotime($pregunta->fecha_creacion)) ?>
             </div>
             <div style="font-size: 1.1rem; line-height: 1.7;">
                 <?= nl2br(htmlspecialchars($pregunta->contenido)) ?>
             </div>
-            <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-secondary);">
+                                    <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-secondary);">
+                <?php if (is_logged_in()): 
+                    $stmt_sub = $pdo->prepare("SELECT id FROM forum_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
+                    $stmt_sub->execute([$_SESSION['user_id'], $pregunta_id]);
+                    $is_sub = $stmt_sub->fetch();
+                ?>
+                    <button id="btn-subscribe" onclick="toggleSubscribe(<?= $pregunta_id ?>)" class="btn" style="background: <?= $is_sub ? '#94a3b8' : 'var(--primary-color)' ?>; color: white; padding: 5px 10px; font-size: 0.7rem;">
+                        <i class="fas fa-bell"></i> <?= $is_sub ? 'Anular suscripción' : 'Suscribirse a este foro' ?>
+                    </button>
+                    <script>
+                    function toggleSubscribe(id) {
+                        const btn = document.getElementById('btn-subscribe');
+                        const formData = new FormData();
+                        formData.append('pregunta_id', id);
+                        fetch('<?= BASE_URL ?>api/subscribe_forum.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                if (data.action === 'subscribed') {
+                                    btn.style.background = '#94a3b8';
+                                    btn.innerHTML = '<i class="fas fa-bell"></i> Anular suscripción';
+                                } else {
+                                    btn.style.background = 'var(--primary-color)';
+                                    btn.innerHTML = '<i class="fas fa-bell"></i> Suscribirse a este foro';
+                                }
+                            }
+                        });
+                    }
+                    </script>
+                <?php endif; ?>
+                <?php if (is_logged_in()): 
+                    $stmt_sub = $pdo->prepare("SELECT id FROM forum_suscripciones WHERE usuario_id = ? AND pregunta_id = ?");
+                    $stmt_sub->execute([$_SESSION['user_id'], $pregunta_id]);
+                    $is_sub = $stmt_sub->fetch();
+                ?>
+                    <button id="btn-subscribe" onclick="toggleSubscribe(<?= $pregunta_id ?>)" class="btn" style="background: <?= $is_sub ? '#94a3b8' : 'var(--primary-color)' ?>; color: white; padding: 5px 10px; font-size: 0.7rem;">
+                        <i class="fas fa-bell"></i> <?= $is_sub ? 'Anular suscripción' : 'Suscribirse a este foro' ?>
+                    </button>
+                    <script>
+                    function toggleSubscribe(id) {
+                        const btn = document.getElementById('btn-subscribe');
+                        const formData = new FormData();
+                        formData.append('pregunta_id', id);
+                        fetch('<?= BASE_URL ?>api/subscribe_forum.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                if (data.action === 'subscribed') {
+                                    btn.style.background = '#94a3b8';
+                                    btn.innerHTML = '<i class="fas fa-bell"></i> Anular suscripción';
+                                } else {
+                                    btn.style.background = 'var(--primary-color)';
+                                    btn.innerHTML = '<i class="fas fa-bell"></i> Suscribirse a este foro';
+                                }
+                            }
+                        });
+                    }
+                    </script>
+                <?php endif; ?>
                 <i class="far fa-eye"></i> <?= $pregunta->total_vistas ?> vistas 
             </div>
             <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center;">
@@ -178,7 +244,7 @@ $respuestas = $stmt->fetchAll();
                                 <input type="hidden" name="respuesta_id" value="<?= $r->id ?>">
                                 <input type="hidden" name="pregunta_id" value="<?= $pregunta_id ?>">
                                 <div style="display: flex; gap: 10px;">
-                                    <input type="text" name="contenido" placeholder="Añadir un comentario..." style="flex: 1; font-size: 0.75rem; border: none; background: #f8fafc; padding: 5px 12px; border-radius: 20px;">
+                                    <input type="text" name="contenido" placeholder="AÃ±adir un comentario..." style="flex: 1; font-size: 0.75rem; border: none; background: #f8fafc; padding: 5px 12px; border-radius: 20px;">
                                     <button type="submit" style="background: none; border: none; color: var(--primary-color); cursor: pointer;"><i class="fas fa-paper-plane"></i></button>
                                 </div>
                             </form>
@@ -192,13 +258,13 @@ $respuestas = $stmt->fetchAll();
     <!-- Formulario de Respuesta -->
     <div id="form-respuesta" class="glass-card" style="box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid var(--primary-color); margin-top: 30px;">
         <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-reply" style="color: var(--primary-color);"></i> Tu Respuesta Técnica
+            <i class="fas fa-reply" style="color: var(--primary-color);"></i> Tu Respuesta TÃ©cnica
         </h3>
 
         <?php if (!$current_user_id): ?>
             <div style="text-align: center; padding: 20px; background: rgba(59, 130, 246, 0.05); border-radius: 12px; border: 1px dashed var(--primary-color);">
                 <p style="margin-bottom: 15px;">Debes estar identificado para participar.</p>
-                <a href="<?= BASE_URL ?>views/login.php" class="btn btn-primary">Iniciar Sesión para Responder</a>
+                <a href="<?= BASE_URL ?>views/login.php" class="btn btn-primary">Iniciar SesiÃ³n para Responder</a>
             </div>
         <?php else: ?>
             <?php if ($answer_error): ?>
@@ -209,7 +275,7 @@ $respuestas = $stmt->fetchAll();
 
             <form action="<?= BASE_URL ?>views/forum_detail.php?id=<?= $pregunta_id ?>" method="POST">
                 <input type="hidden" name="pregunta_id_hidden" value="<?= $pregunta_id ?>">
-                <textarea name="contenido" class="form-control" rows="6" placeholder="Aporta una solución clara o sugerencia..." required style="resize: vertical;"></textarea>
+                <textarea name="contenido" class="form-control" rows="6" placeholder="Aporta una soluciÃ³n clara o sugerencia..." required style="resize: vertical;"></textarea>
                 <div style="text-align: right; margin-top: 20px;">
                     <button type="submit" name="submit_answer" class="btn btn-primary" style="padding: 12px 40px; font-size: 1rem;">Publicar Respuesta</button>
                 </div>
@@ -244,7 +310,7 @@ $respuestas = $stmt->fetchAll();
             <?php endforeach; ?>
 
             <div style="margin-top: 30px; padding: 15px; background: rgba(59,130,246,0.05); border-radius: 12px; border: 1px dashed var(--primary-color); font-size: 0.8rem; text-align: center;">
-                <p>¿No encuentras la solución? Pregunta a la comunidad.</p>
+                <p>Â¿No encuentras la soluciÃ³n? Pregunta a la comunidad.</p>
                 <a href="ask_question.php" style="color: var(--primary-color); font-weight: 700;">Hacer Pregunta</a>
             </div>
         </div>
@@ -294,7 +360,7 @@ function vote(pId, rId) {
             alert(data.error);
             return;
         }
-        // Recargamos para actualizar conteos (o podrías hacerlo con JS puro para más suavidad)
+        // Recargamos para actualizar conteos (o podrÃ­as hacerlo con JS puro para mÃ¡s suavidad)
         location.reload();
     });
 }
@@ -314,3 +380,7 @@ function markSolve(rId) {
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
+
+
+
+
